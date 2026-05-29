@@ -270,3 +270,39 @@ Stage Summary:
 - Title matches exact spec "Bienvenue sur OGOUTEL_Prestige"
 - Middleware, LoginForm, and RegisterForm all use consistent redirect paths
 - /api/register-user added to public API routes
+---
+Task ID: 13
+Agent: Main Agent + 3 Subagents
+Task: Create complete Super Admin Dashboard for OGOUTEL_Prestige (15 files)
+
+Work Log:
+- Created 5 API routes for super admin data (src/app/api/super-admin/):
+  * stats/route.ts — GET: total hotels, active hotels, pending requests, codes this month, estimated revenue, recent subscriptions, recent hotels, subscriptions by plan
+  * hotels/route.ts — GET: paginated hotels with admin info + PUT: toggle est_actif/change plan
+  * subscriptions/route.ts — GET: paginated demandes + PUT: update status + POST: generate activation code
+  * codes/route.ts — GET: paginated codes + POST: generate new code (OGT-XXXX-XXXX) + DELETE: revoke
+  * export/route.ts — GET: CSV export for hotels/subscriptions/codes
+- Created 5 super-admin components (src/components/super-admin/):
+  * SuperAdminSidebar.tsx — Collapsible sidebar (w-64→w-20) with Framer Motion, mobile Sheet drawer, active highlighting, logout, disabled "Bientôt" items
+  * StatsCards.tsx — 4 animated stat cards (Hôtels Actifs, Demandes en Attente, Codes Générés, Revenus Estimés) with AnimatedCounter
+  * HotelsTable.tsx — Full data table with search/filter/pagination, hotel detail modal, CSV export, admin info
+  * SubscriptionRequestsTable.tsx — Full data table with status transitions, code generation, WhatsApp/Email links, admin notes modal
+  * ActivationCodeGenerator.tsx — Generation dialog (from pending request or manual), codes table with copy/revoke/resend
+- Created 5 pages (src/app/(dashboard)/super-admin/):
+  * layout.tsx — Server component layout with fixed sidebar + main content area (ml-0 md:ml-64)
+  * page.tsx — Vue d'ensemble: StatsCards, recent requests table, PieChart (recharts donut), recent hotels table
+  * hotels/page.tsx — Tous les Hôtels: mini stat cards + HotelsTable
+  * subscriptions/page.tsx — Demandes: mini stat cards + SubscriptionRequestsTable
+  * activation-codes/page.tsx — Codes: mini stat cards + ActivationCodeGenerator
+- All API routes use dynamic Supabase import + graceful demo data fallback
+- All pages use useCallback+useEffect pattern fetching from API routes
+- PieChart uses custom colors: basique=#9CA3AF, standard=#10B981, premium=#D4AF37
+- All text in French, consistent brand styling (gold/green/black palette)
+
+Stage Summary:
+- 15 new files: 5 API routes + 5 components + 5 pages/layout
+- Complete Super Admin Dashboard: Overview, Hotels, Subscriptions, Activation Codes
+- All pages return HTTP 200, all APIs return HTTP 200 with demo data
+- ESLint passes with zero errors
+- Responsive design: sidebar collapses on mobile with Sheet drawer
+- Rich features: search, filter, pagination, CSV export, WhatsApp/Email links, status transitions
