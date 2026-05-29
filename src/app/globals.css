@@ -6,7 +6,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -50,69 +50,69 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #FFFBF5;
-  --foreground: #0F0F0F;
+  --background: #F8F9FA;
+  --foreground: #111827;
   --card: #FFFFFF;
-  --card-foreground: #0F0F0F;
+  --card-foreground: #111827;
   --popover: #FFFFFF;
-  --popover-foreground: #0F0F0F;
+  --popover-foreground: #111827;
   --primary: #C8A97E;
-  --primary-foreground: #0F0F0F;
-  --secondary: #F5EDE3;
-  --secondary-foreground: #1A1A1A;
-  --muted: #F5EDE3;
-  --muted-foreground: #6B5E52;
-  --accent: #F5EDE3;
-  --accent-foreground: #1A1A1A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F3F4F6;
+  --secondary-foreground: #1F2937;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #F3F4F6;
+  --accent-foreground: #1F2937;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #E8DDD0;
-  --input: #E8DDD0;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
   --ring: #C8A97E;
   --chart-1: #C8A97E;
-  --chart-2: #B08E64;
-  --chart-3: #D4BA94;
-  --chart-4: #8B7355;
-  --chart-5: #E8DDD0;
-  --sidebar: #FFFBF5;
-  --sidebar-foreground: #0F0F0F;
+  --chart-2: #10B981;
+  --chart-3: #3B82F6;
+  --chart-4: #8B5CF6;
+  --chart-5: #F59E0B;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #111827;
   --sidebar-primary: #C8A97E;
-  --sidebar-primary-foreground: #0F0F0F;
-  --sidebar-accent: #F5EDE3;
-  --sidebar-accent-foreground: #1A1A1A;
-  --sidebar-border: #E8DDD0;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F3F4F6;
+  --sidebar-accent-foreground: #1F2937;
+  --sidebar-border: #E5E7EB;
   --sidebar-ring: #C8A97E;
 }
 
 .dark {
-  --background: #0F0F0F;
-  --foreground: #FFFBF5;
-  --card: #1A1A1A;
-  --card-foreground: #FFFBF5;
-  --popover: #1A1A1A;
-  --popover-foreground: #FFFBF5;
+  --background: #0F172A;
+  --foreground: #F8FAFC;
+  --card: #1E293B;
+  --card-foreground: #F8FAFC;
+  --popover: #1E293B;
+  --popover-foreground: #F8FAFC;
   --primary: #C8A97E;
-  --primary-foreground: #0F0F0F;
-  --secondary: #2A2520;
-  --secondary-foreground: #FFFBF5;
-  --muted: #2A2520;
-  --muted-foreground: #A89888;
-  --accent: #2A2520;
-  --accent-foreground: #FFFBF5;
+  --primary-foreground: #0F172A;
+  --secondary: #1E293B;
+  --secondary-foreground: #F8FAFC;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #1E293B;
+  --accent-foreground: #F8FAFC;
   --destructive: oklch(0.704 0.191 22.216);
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.15);
   --ring: #C8A97E;
   --chart-1: #C8A97E;
-  --chart-2: #B08E64;
-  --chart-3: #D4BA94;
-  --chart-4: #8B7355;
-  --chart-5: #E8DDD0;
-  --sidebar: #1A1A1A;
-  --sidebar-foreground: #FFFBF5;
+  --chart-2: #10B981;
+  --chart-3: #3B82F6;
+  --chart-4: #8B5CF6;
+  --chart-5: #F59E0B;
+  --sidebar: #1E293B;
+  --sidebar-foreground: #F8FAFC;
   --sidebar-primary: #C8A97E;
-  --sidebar-primary-foreground: #0F0F0F;
-  --sidebar-accent: #2A2520;
-  --sidebar-accent-foreground: #FFFBF5;
+  --sidebar-primary-foreground: #0F172A;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
   --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: #C8A97E;
 }
@@ -122,11 +122,11 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[#F8F9FA] text-foreground;
   }
 }
 
-/* Custom scrollbar styling */
+/* ─── Scrollbar personnalisée ───────────────────────────────────────────────── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -144,12 +144,12 @@
   background: #B08E64;
 }
 
-/* Smooth scroll behavior */
+/* ─── Scroll fluide ─────────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
 }
 
-/* Playfair Display heading utility */
+/* ─── Police d'headings (Playfair Display) ──────────────────────────────────── */
 .font-heading {
   font-family: var(--font-playfair-display), Georgia, serif;
 }
