@@ -38,6 +38,15 @@ const PLAN_LABELS: Record<string, string> = {
   premium: 'Premium',
 };
 
+// ─── Codes de démonstration (quand Supabase non configuré) ──────────────────
+
+const DEMO_CODES: Record<string, { plan_id: string; plan_name: string; hotel_name: string }> = {
+  'OGT-DEMO-HOT1': { plan_id: 'premium', plan_name: 'Premium', hotel_name: 'Hôtel Le Prestige' },
+  'OGT-DEMO-HTP1': { plan_id: 'premium', plan_name: 'Premium', hotel_name: 'Hôtel Le Palmier' },
+  'OGT-DEMO-STD1': { plan_id: 'standard', plan_name: 'Standard', hotel_name: 'Hôtel La Dignité' },
+  'OGT-DEMO-BAS1': { plan_id: 'basique', plan_name: 'Basique', hotel_name: 'Hôtel Le Petit Prince' },
+};
+
 // ─── Route Handler ──────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -48,11 +57,47 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
+    // ── 0b. MODE DÉMO : codes de test quand Supabase non configuré ──
     if (!hasSupabase) {
+      const body: ValidateCodeBody = await request.json();
+      const { code } = body;
+
+      if (!code || typeof code !== 'string') {
+        return NextResponse.json<ValidationResponse>({
+          valid: false,
+          error: 'Le code d\'activation est requis.',
+        }, { status: 400 });
+      }
+
+      const normalizedCode = code.trim().toUpperCase();
+      const demoCode = DEMO_CODES[normalizedCode];
+
+      if (demoCode) {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+        return NextResponse.json<ValidationResponse>({
+          valid: true,
+          code: normalizedCode,
+          plan_id: demoCode.plan_id,
+          plan_name: demoCode.plan_name,
+          hotel_name: demoCode.hotel_name,
+          expires_at: expiresAt.toISOString(),
+        });
+      }
+
+      // Code non reconnu en mode démo
+      const codePattern = /^OGT-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+      if (!codePattern.test(normalizedCode)) {
+        return NextResponse.json<ValidationResponse>({
+          valid: false,
+          error: 'Format de code invalide. Le code doit être au format OGT-XXXX-XXXX.',
+        }, { status: 400 });
+      }
+
       return NextResponse.json<ValidationResponse>({
         valid: false,
-        error: 'Service de validation temporairement indisponible.',
-      }, { status: 503 });
+        error: 'Code inconnu. Utilisez un code de démonstration.',
+      });
     }
 
     // ── 1. Parser le body ──
