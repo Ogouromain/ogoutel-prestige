@@ -234,6 +234,8 @@ export async function GET(request: Request) {
       .order('numero');
 
     if (statut) query = query.eq('statut', statut);
+
+    if (chambreId) query = query.eq('id', chambreId);
     if (type) query = query.eq('type', type);
     if (etage) query = query.eq('etage', parseInt(etage));
     if (search) query = query.ilike('numero', `%${search}%`);
@@ -402,9 +404,10 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { chambreId, statut, prix_nuit, description, equipements, etage } = body;
+    const { id, chambreId, statut, prix_nuit, description, equipements, etage } = body;
+    const roomId = chambreId || id;
 
-    if (!chambreId) {
+    if (!roomId) {
       return NextResponse.json(
         { success: false, error: 'chambreId requis.' },
         { status: 400 }
@@ -439,7 +442,7 @@ export async function PUT(request: Request) {
     const supabase = await createClient();
 
     if (!supabase) {
-      const chambre = DEMO_CHAMBRES.find(c => c.id === chambreId);
+      const chambre = DEMO_CHAMBRES.find(c => c.id === roomId);
       if (!chambre) {
         return NextResponse.json({ success: false, error: 'Chambre non trouvée (démo).' }, { status: 404 });
       }
@@ -497,7 +500,7 @@ export async function DELETE(request: Request) {
     const supabase = await createClient();
 
     if (!supabase) {
-      const chambre = DEMO_CHAMBRES.find(c => c.id === chambreId);
+      const chambre = DEMO_CHAMBRES.find(c => c.id === roomId);
       if (!chambre) {
         return NextResponse.json({ success: false, error: 'Chambre non trouvée (démo).' }, { status: 404 });
       }

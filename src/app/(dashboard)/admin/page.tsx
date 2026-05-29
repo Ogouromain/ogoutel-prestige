@@ -11,14 +11,36 @@ import DashboardStats from '@/components/admin/DashboardStats';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-interface AdminStats {
-  chambres: any;
-  today: any;
-  finances: any;
-  revenus_7j: any;
-  chambres_detail: any;
-  arrivees: any;
-  departs: any;
+interface DashboardData {
+  chambres: {
+    total: number;
+    disponibles: number;
+    occupees: number;
+    maintenance: number;
+    reservees: number;
+  };
+  chambres_detail: Array<{
+    id: string;
+    numero: string;
+    type: string;
+    statut: string;
+    etage: number;
+    prix_nuit: number;
+    photo_url?: string;
+    current_reservation?: any;
+  }>;
+  today: {
+    checkins: number;
+    checkouts: number;
+  };
+  finances: {
+    revenus_jour: number;
+    revenus_mois: number;
+  };
+  arrivees: any[];
+  departs: any[];
+  revenus_7j: Array<{ date: string; montant: number }>;
+  taux_occupation: number;
 }
 
 // ─── Loading Skeleton ──────────────────────────────────────────────────────────
@@ -30,7 +52,7 @@ function PageSkeleton() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-5 w-72" />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
@@ -43,7 +65,7 @@ function PageSkeleton() {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -52,7 +74,7 @@ export default function AdminDashboardPage() {
       const res = await fetch('/api/admin/stats');
       const json = await res.json();
       if (json.success) {
-        setStats(json.data);
+        setData(json.data);
       } else {
         toast.error('Erreur de chargement des statistiques');
       }
@@ -67,11 +89,9 @@ export default function AdminDashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  if (isLoading) return <PageSkeleton />;
-
   return (
     <div className="space-y-6">
-      {/* ── Header ────────────────────────────────────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0A0A0A]">
@@ -92,9 +112,9 @@ export default function AdminDashboardPage() {
         </Button>
       </div>
 
-      {/* ── Dashboard Stats ──────────────────────────────────────────────────── */}
-      {stats ? (
-        <DashboardStats stats={stats} />
+      {/* ── Dashboard Stats ──────────────────────────────────────────── */}
+      {data ? (
+        <DashboardStats stats={data} isLoading={isLoading} />
       ) : (
         <Card className="rounded-xl border-0 shadow-sm">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">

@@ -143,6 +143,17 @@ const DEMO_HOTEL = {
   email: 'contact@lepalmier.ci',
 };
 
+// Demo current reservations for occupied rooms
+const DEMO_CURRENT_RESERVATIONS: Record<string, {
+  id: string; client_nom: string; client_prenom: string; date_checkin: string; date_checkout: string;
+}> = {
+  'ch-02': { id: 'res-cur-1', client_nom: 'Koné', client_prenom: 'Ibrahim', date_checkin: new Date(Date.now() - 4 * 86400000).toISOString().split('T')[0], date_checkout: new Date().toISOString().split('T')[0] },
+  'ch-03': { id: 'res-cur-2', client_nom: 'Diallo', client_prenom: 'Aïcha', date_checkin: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0], date_checkout: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0] },
+  'ch-06': { id: 'res-cur-3', client_nom: 'Yao', client_prenom: 'Serge', date_checkin: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0], date_checkout: new Date(Date.now() + 4 * 86400000).toISOString().split('T')[0] },
+  'ch-09': { id: 'res-cur-4', client_nom: 'Touré', client_prenom: 'Fatoumata', date_checkin: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0], date_checkout: new Date().toISOString().split('T')[0] },
+  'ch-11': { id: 'res-cur-5', client_nom: 'Coulibaly', client_prenom: 'Mariam', date_checkin: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0], date_checkout: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0] },
+};
+
 function buildDemoStats() {
   const chambres = {
     total: DEMO_CHAMBRES.length,
@@ -152,9 +163,36 @@ function buildDemoStats() {
     reservees: DEMO_CHAMBRES.filter(c => c.statut === 'reservee').length,
   };
 
-  const dernieres_7_jours = generateRevenus7Jours();
-  const revenus_jour = dernieres_7_jours[6].montant;
-  const revenus_mois = dernieres_7_jours.reduce((s, d) => s + d.montant, 0) * 4.3;
+  // Room detail for mini-grid
+  const chambres_detail = DEMO_CHAMBRES.map(c => ({
+    ...c,
+    current_reservation: c.statut === 'occupee' ? DEMO_CURRENT_RESERVATIONS[c.id] ?? null : null,
+  }));
+
+  // Arrivees / Departs with chambre info
+  const arrivees = DEMO_ARRIVEES.map(a => ({
+    ...a,
+    client_nom: a.client?.nom ?? '—',
+    client_prenom: a.client?.prenom ?? '',
+    client_telephone: a.client?.telephone ?? '',
+    chambre_numero: a.chambre?.numero ?? '—',
+    date_checkin: a.date_arrivee,
+    date_checkout: a.date_depart,
+  }));
+
+  const departs = DEMO_DEPARTS.map(d => ({
+    ...d,
+    client_nom: d.client?.nom ?? '—',
+    client_prenom: d.client?.prenom ?? '',
+    client_telephone: d.client?.telephone ?? '',
+    chambre_numero: d.chambre?.numero ?? '—',
+    date_checkin: d.date_arrivee,
+    date_checkout: d.date_depart,
+  }));
+
+  const revenus_7j = generateRevenus7Jours();
+  const revenus_jour = revenus_7j[6].montant;
+  const revenus_mois = revenus_7j.reduce((s, d) => s + d.montant, 0) * 4.3;
   const revenus_annee = revenus_mois * 12;
 
   const taux_occupation = chambres.total > 0
@@ -164,20 +202,21 @@ function buildDemoStats() {
   return {
     hotel: DEMO_HOTEL,
     chambres,
+    chambres_detail,
     today: {
       checkins: DEMO_ARRIVEES.length,
       checkouts: DEMO_DEPARTS.length,
-      arrivees: DEMO_ARRIVEES,
-      departs: DEMO_DEPARTS,
     },
     finances: {
       revenus_jour,
       revenus_mois: Math.round(revenus_mois),
       revenus_annee: Math.round(revenus_annee),
-      dernieres_7_jours,
     },
-    reservations_en_cours: 7,
+    arrivees,
+    departs,
+    revenus_7j,
     taux_occupation,
+    reservations_en_cours: 7,
   };
 }
 
@@ -355,23 +394,98 @@ export async function GET() {
       });
     }
 
+    // ── Compute chambres_detail (for mini-grid) ──
+    const allChambresList = chambresRes.data ?? [];
+    const chambreIds = allChambresList.map(c => c.id);
+    const chambresIdsOccupees = allChambresList.filter(c => c.statut === 'occupee').map(c => c.id);
+
+    let chambres_detail = allChambresList.map(c => ({
+      id: c.id,
+      numero: c.numero,
+      type: c.type,
+      statut: c.statut,
+      etage: c.etage,
+      prix_nuit: c.prix_nuit,
+      photo_url: c.photo_url,
+      current_reservation: null as unknown,
+    }));
+
+    // Fetch current reservations for occupied rooms
+    if (chambresIdsOccupees.length > 0) {
+      const { data: activeResForRooms } = await supabase
+        .from('reservations')
+        .select('id, chambre_id, date_arrivee, date_depart, statut, client:clients!client_id(nom, prenom, telephone)')
+        .eq('hotel_id', hotelId)
+        .in('chambre_id', chambresIdsOccupees)
+        .eq('statut', 'checkin');
+
+      const resMap: Record<string, unknown> = {};
+      for (const res of (activeResForRooms ?? [])) {
+        if (res.chambre_id) {
+          resMap[res.chambre_id] = {
+            id: res.id,
+            client_nom: res.client?.nom ?? '—',
+            client_prenom: res.client?.prenom ?? '',
+            date_checkin: res.date_arrivee,
+            date_checkout: res.date_depart,
+          };
+        }
+      }
+      chambres_detail = chambres_detail.map(c => ({
+        ...c,
+        current_reservation: resMap[c.id] ?? null,
+      }));
+    }
+
+    // ── Format arrivees/departs ──
+    const arrivees = (todayArriveesRes.data ?? []).map(a => ({
+      id: a.id,
+      client_nom: a.client?.nom ?? '—',
+      client_prenom: a.client?.prenom ?? '',
+      client_telephone: a.client?.telephone ?? '',
+      chambre_numero: a.chambre?.numero ?? '—',
+      chambre_type: a.chambre?.type ?? '—',
+      date_checkin: a.date_arrivee,
+      date_checkout: a.date_depart,
+      statut: a.statut,
+      notes: a.notes,
+      montant_total: a.montant_total,
+      montant_paye: a.montant_paye,
+    }));
+
+    const departs = (todayDepartsRes.data ?? []).map(d => ({
+      id: d.id,
+      client_nom: d.client?.nom ?? '—',
+      client_prenom: d.client?.prenom ?? '',
+      client_telephone: d.client?.telephone ?? '',
+      chambre_numero: d.chambre?.numero ?? '—',
+      chambre_type: d.chambre?.type ?? '—',
+      date_checkin: d.date_arrivee,
+      date_checkout: d.date_depart,
+      statut: d.statut,
+      notes: d.notes,
+      montant_total: d.montant_total,
+      montant_paye: d.montant_paye,
+    }));
+
     const data = {
       hotel: hotelRes.data ?? DEMO_HOTEL,
       chambres: chambresStats,
+      chambres_detail,
       today: {
         checkins: todayCheckinsRes.count ?? 0,
         checkouts: todayCheckoutsRes.count ?? 0,
-        arrivees: todayArriveesRes.data ?? [],
-        departs: todayDepartsRes.data ?? [],
       },
       finances: {
         revenus_jour,
         revenus_mois,
         revenus_annee,
-        dernieres_7_jours,
       },
-      reservations_en_cours: reservationsActivesRes.count ?? 0,
+      arrivees,
+      departs,
+      revenus_7j: dernieres_7_jours,
       taux_occupation,
+      reservations_en_cours: reservationsActivesRes.count ?? 0,
     };
 
     return NextResponse.json({ success: true, data });
