@@ -72,3 +72,40 @@ Stage Summary:
 - No circular dependencies — clean FK order with single ALTER TABLE for codes_acces.utilise_par
 - 9 triggers, 38 indexes, 20 RLS policies, 3 views, 5 functions
 - All TypeScript types and constants aligned with new schema
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Add PARTIE 12-15 (triggers, RLS, SQL functions, seed data) — fully idempotent
+
+Work Log:
+- Complete rewrite of supabase/schema.sql (~900 lines) as single idempotent SQL block
+- PARTIE 12 Triggers (12 total):
+  - 12.1: updated_at auto on 7 tables (profiles, hotels, personnel, chambres, clients, reservations, abonnement_demandes)
+  - 12.2: handle_new_user auto-creates profile on auth.users INSERT
+  - 12.3: chambres_apres_insert → updates hotels.nombre_chambres
+  - 12.4: chambres_apres_delete → updates hotels.nombre_chambres
+  - Plus: factures_calcul_montants, reservations_calcul
+- PARTIE 13 RLS (20 policies on 11 tables):
+  - profiles: own profile, super_admin total, admin_hotel team
+  - hotels: public read active (anon), admin own, super_admin total
+  - chambres/clients/reservations/factures/personnel_hotel: hotel_id based + super_admin
+  - abonnement_demandes: public INSERT (anon), super_admin CRUD
+  - codes_acces: public read for validation, super_admin CRUD
+  - activites_log: hotel_id + user_id + super_admin
+  - notifications: user_id + hotel_id + super_admin
+- PARTIE 14 Functions (4 new, 11 total):
+  - get_hotel_stats(UUID) → JSON (chambres, reservations, revenus)
+  - get_super_admin_stats() → TABLE (hotels, users, demandes)
+  - is_super_admin() → BOOLEAN (checks auth.uid() role)
+  - get_user_hotel_id() → UUID (returns current user hotel_id)
+- PARTIE 15 Seed data: 1 test row in abonnement_demandes (WHERE NOT EXISTS)
+- Idempotency pattern everywhere: CREATE TABLE IF NOT EXISTS, CREATE OR REPLACE FUNCTION, DROP TRIGGER IF EXISTS + CREATE, DROP POLICY IF EXISTS + CREATE, CREATE INDEX IF NOT EXISTS, INSERT WHERE NOT EXISTS
+- Clean DROP block at top (commented) for fresh reinstall
+- Lint passes clean, dev server 200 OK
+
+Stage Summary:
+- Complete production-ready SQL schema (~900 lines)
+- 12 tables, 11 functions, 12 triggers, 20 RLS policies, 38 indexes, 3 views
+- Fully idempotent — safe to run multiple times in Supabase SQL Editor
+- Compatible PostgreSQL 15, zero ENUMs, all TEXT+CHECK
