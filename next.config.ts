@@ -8,23 +8,29 @@
 //   - Les images distantes (Supabase Storage) sont autorisées
 //   - Turbopack est activé par défaut en dev (Next.js 16)
 //   - Middleware est deprecated dans Next.js 16 (utilise proxy.ts)
+//   - allowedDevOrigins autorise le Preview Panel (iframe externe)
 // ============================================
 
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // ─── Cross-Origin pour le Preview Panel ────────────────
+  // Autorise le panneau de prévisualisation (iframe externe)
+  // à charger les chunks JS/CSS depuis le dev server
+  allowedDevOrigins: [
+    "http://localhost:81",
+    "https://space-z.ai",
+  ],
+
   // ─── TypeScript ────────────────────────────────────────────
-  // Ignore les erreurs TS au build (utile en dev avec des dépendances tierces)
   typescript: {
     ignoreBuildErrors: true,
   },
 
   // ─── React ───────────────────────────────────────────────
-  // Désactivé pour éviter les double-renders en dev
   reactStrictMode: false,
 
   // ─── Images ───────────────────────────────────────────────
-  // Autorise les images depuis Supabase Storage
   images: {
     remotePatterns: [
       {
@@ -44,16 +50,39 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // ─── Headers de sécurité ───────────────────────────────────
-  // Ajoute des headers de sécurité à toutes les réponses
+  // ─── Headers ─────────────────────────────────────────────
   async headers() {
     return [
       {
+        // Aucun header restrictif sur les assets Next.js
+        // pour permettre le chargement cross-origin depuis le Preview Panel
+        source: "/_next/:path*",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "*",
+          },
+        ],
+      },
+      {
         source: "/(.*)",
         headers: [
+          // Autoriser l'affichage dans les iframes du Preview Panel
           {
             key: "X-Frame-Options",
             value: "ALLOWALL",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors *",
           },
           {
             key: "X-Content-Type-Options",
@@ -63,17 +92,12 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "origin-when-cross-origin",
           },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
         ],
       },
     ];
   },
 
   // ─── Redirections ─────────────────────────────────────────
-  // Redirections utiles pour l'application
   async redirects() {
     return [
       {
