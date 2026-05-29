@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  maxGuests   Int
+  bedType     String
+  size        Int      // in m²
+  image       String
+  features    String   // JSON array stored as string
+  available   Boolean  @default(true)
+  category    String   // standard, deluxe, suite
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bookings    Booking[]
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  roomId        String
+  guestName     String
+  guestEmail    String
+  guestPhone    String
+  checkIn       DateTime
+  checkOut      DateTime
+  adults        Int
+  children      Int      @default(0)
+  totalPrice    Float
+  status        String   @default("pending") // pending, confirmed, cancelled
+  specialRequests String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  room          Room     @relation(fields: [roomId], references: [id])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  rating    Int
+  comment   String
+  avatar    String?
+  approved  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
