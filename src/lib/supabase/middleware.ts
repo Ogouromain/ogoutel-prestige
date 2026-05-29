@@ -2,6 +2,23 @@
 // OGOUTEL_Prestige - Supabase Middleware
 // Rafraîchit la session + protection des routes
 // par rôle d'utilisateur
+//
+// Routes publiques    : /, /login, /register,
+//                       /forgot-password, /reset-password,
+//                       /api/send-contact
+//
+// Routes protégées    :
+//   /super-dashboard  → super_admin
+//   /dashboard        → admin_hotel, gerant
+//   /receptionniste   → receptionniste, gerant, admin_hotel
+//
+// Logique :
+//   Non connecté  + route protégée  → /login?redirect=...
+//   Connecté      + /login|register → /dashboard selon rôle
+//   Mauvais rôle  + route réservée  → dashboard de son rôle
+//
+// ⚠️ Si Supabase n'est pas configuré (.env.local manquant),
+//    toutes les routes passent sans authentification.
 // ============================================
 
 import { createServerClient } from "@supabase/ssr";
@@ -27,7 +44,7 @@ interface UserWithRole {
 const ROUTES_PUBLIQUES = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
 /** Routes d'API accessibles sans authentification */
-const ROUTES_API_PUBLIQUES = ["/api/send-contact", "/api/auth", "/api/pricing"];
+const ROUTES_API_PUBLIQUES = ["/api/send-contact", "/api/auth", "/api/pricing", "/api/"];
 
 /** Association rôle → route dashboard */
 const DASHBOARD_PAR_ROLE: Record<RoleUtilisateur, string> = {
@@ -84,7 +101,7 @@ function isRouteAuth(pathname: string): boolean {
 }
 
 /** Retourne la route protégée correspondante à un chemin */
-function getRouteProtégee(pathname: string): string | null {
+function getRouteProtégée(pathname: string): string | null {
   // Vérifie les correspondances exactes d'abord
   if (PERMISSIONS_ROUTES[pathname]) {
     return pathname;
@@ -114,9 +131,22 @@ function extraireRole(user: { app_metadata?: Record<string, unknown>; user_metad
   return role;
 }
 
+/** Vérifie si Supabase est correctement configuré */
+function isSupabaseConfigured(): boolean {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 // ─── Fonction principale ────────────────────────────────────────────────────
 
 export async function updateSession(request: NextRequest) {
+  // ─── 0. Si Supabase n'est pas configuré, laisser passer tout le monde ────
+  if (!isSupabaseConfigured()) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -196,7 +226,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // ─── 7. Vérification des permissions par rôle ───────────────────────────
-  const routeProtégée = getRouteProtégee(pathname);
+  const routeProtégée = getRouteProtégée(pathname);
 
   if (routeProtégée && role) {
     const rolesAutorisés = PERMISSIONS_ROUTES[routeProtégée];

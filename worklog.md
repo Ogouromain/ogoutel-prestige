@@ -156,3 +156,24 @@ Stage Summary:
 - Complete landing page: 8 components, 2 route files, 1 API route = 11 files
 - Brand colors: gold #D4AF37, green #1B4332, orange #F77F00, black #0A0A0A
 - All lint checks pass, dev server returns 200 on /
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix Supabase middleware crash — missing .env.local causing runtime error on every request
+
+Work Log:
+- Error: "Your project's URL and Key are required to create a Supabase client!" at middleware.ts:124
+- Root cause: .env.local file missing, so NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are undefined
+- The middleware was intercepting ALL routes (including /) via the matcher pattern, and crashing before routing
+- This caused both the Supabase error AND the 404 on GET /
+- Fix: Added `isSupabaseConfigured()` guard to `src/lib/supabase/middleware.ts`
+  - Returns NextResponse.next() immediately if env vars are missing
+  - No auth checking when Supabase is not configured — allows landing page to work standalone
+- Also reverted an invalid allowedDevOrigins config in next.config.ts (regex not supported in Next.js 16)
+- Result: GET / returns 200, no more Supabase errors, lint clean
+
+Stage Summary:
+- Middleware gracefully handles missing Supabase credentials
+- Landing page renders correctly without any Supabase connection
+- Dev server running clean with no errors
