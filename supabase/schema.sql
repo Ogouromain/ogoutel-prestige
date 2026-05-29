@@ -18,7 +18,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================================
 
 -- ⚠️ Les rôles utilisateurs (super_admin, admin_hotel, gerant, receptionniste)
---    sont gérés avec TEXT + CHECK dans la table profiles et personnel_hotel
+--    sont gérés avec TEXT + CHECK dans les tables profiles et personnel_hotel
 --    pour plus de flexibilité.
 
 -- Plans d'abonnement
@@ -87,8 +87,42 @@ CREATE TYPE statut_demande AS ENUM (
 );
 
 -- ============================================================
--- 3. TABLE : profiles (Profil utilisateur)
+-- 3. TABLE : hotels (Établissements hôteliers)
+--    ⚠️ Créée AVANT profiles pour éviter l'erreur de FK
+--    L'admin_id est ajouté APRÈS la création de profiles
+-- ============================================================
+
+CREATE TABLE public.hotels (
+  id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  nom                       TEXT NOT NULL,
+  adresse                   TEXT NOT NULL DEFAULT '',
+  ville                     TEXT NOT NULL DEFAULT 'Abidjan',
+  quartier                  TEXT NOT NULL DEFAULT '',
+  telephone                 TEXT NOT NULL,
+  email                     TEXT NOT NULL,
+  logo_url                  TEXT,
+  plan                      plan_abonnement NOT NULL DEFAULT 'basique',
+  admin_id                  UUID,   -- FK ajoutée APRÈS création de profiles
+  nombre_chambres           INTEGER NOT NULL DEFAULT 0,
+  est_actif                 BOOLEAN NOT NULL DEFAULT TRUE,
+  date_debut_abonnement     DATE NOT NULL DEFAULT CURRENT_DATE,
+  date_fin_abonnement       DATE NOT NULL DEFAULT (CURRENT_DATE + INTERVAL '30 days'),
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Contraintes
+  CONSTRAINT hotels_email_unique UNIQUE (email),
+  CONSTRAINT hotels_telephone_format CHECK (telephone ~ '^[+]?[0-9]{10,14}$'),
+  CONSTRAINT hotels_nombre_chambres CHECK (nombre_chambres >= 0)
+);
+
+COMMENT ON TABLE public.hotels IS 'Établissements hôteliers inscrits sur la plateforme';
+COMMENT ON COLUMN public.hotels.plan IS 'Plan d''abonnement : basique, standard, premium';
+COMMENT ON COLUMN public.hotels.nombre_chambres IS 'Nombre de chambres selon le plan souscrit';
+
+-- ============================================================
+-- 4. TABLE : profiles (Profil utilisateur)
 --    Lié à auth.users de Supabase via trigger
+--    ⚠️ hotels doit exister AVANT (créée à l'étape 3)
 -- ============================================================
 
 CREATE TABLE public.profiles (
@@ -120,39 +154,15 @@ COMMENT ON COLUMN public.profiles.full_name IS 'Nom complet de l''utilisateur';
 COMMENT ON COLUMN public.profiles.role IS 'Rôle SaaS : super_admin | admin_hotel | gerant | receptionniste';
 COMMENT ON COLUMN public.profiles.hotel_id IS 'Hôtel d''affectation (NULL = super_admin global)';
 COMMENT ON COLUMN public.profiles.is_active IS 'Compte actif / désactivé';
-COMMENT ON COLUMN public.profiles.profiles_role_super_admin_sans_hotel IS 'Le super_admin n''est rattaché à aucun hôtel';
-COMMENT ON COLUMN public.profiles.profiles_autre_role_avec_hotel IS 'Les autres rôles doivent obligatoirement être rattachés à un hôtel';
 
--- ============================================================
--- 4. TABLE : hotels (Établissements hôteliers)
--- ============================================================
+-- ─── Ajout de la FK hotels.admin_id → profiles.id ─────────────────────────
+-- ⚠️ Maintenant que profiles existe, on peut ajouter la contrainte
 
-CREATE TABLE public.hotels (
-  id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  nom                       TEXT NOT NULL,
-  adresse                   TEXT NOT NULL DEFAULT '',
-  ville                     TEXT NOT NULL DEFAULT 'Abidjan',
-  quartier                  TEXT NOT NULL DEFAULT '',
-  telephone                 TEXT NOT NULL,
-  email                     TEXT NOT NULL,
-  logo_url                  TEXT,
-  plan                      plan_abonnement NOT NULL DEFAULT 'basique',
-  admin_id                  UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
-  nombre_chambres           INTEGER NOT NULL DEFAULT 0,
-  est_actif                 BOOLEAN NOT NULL DEFAULT TRUE,
-  date_debut_abonnement     DATE NOT NULL DEFAULT CURRENT_DATE,
-  date_fin_abonnement       DATE NOT NULL DEFAULT (CURRENT_DATE + INTERVAL '30 days'),
-  created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ALTER TABLE public.hotels
+  ADD CONSTRAINT hotels_admin_id_fkey
+  FOREIGN KEY (admin_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
 
-  -- Contraintes
-  CONSTRAINT hotels_email_unique UNIQUE (email),
-  CONSTRAINT hotels_telephone_format CHECK (telephone ~ '^[+]?[0-9]{10,14}$'),
-  CONSTRAINT hotels_nombre_chambres CHECK (nombre_chambres >= 0)
-);
-
-COMMENT ON TABLE public.hotels IS 'Établissements hôteliers inscrits sur la plateforme';
-COMMENT ON COLUMN public.hotels.plan IS 'Plan d''abonnement : basique, standard, premium';
-COMMENT ON COLUMN public.hotels.nombre_chambres IS 'Nombre de chambres selon le plan souscrit';
+COMMENT ON COLUMN public.hotels.admin_id IS 'Référence vers le profil admin de l''hôtel';
 
 -- ============================================================
 -- 5. TABLE : personnel_hotel (Membres du personnel)
@@ -491,44 +501,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Vérifie et met à jour le statut des chambres
-CREATE OR REPLACE FUNCTION public.mettre_a_jour_statut_chambres()
-RETURNS VOID AS $$
-BEGIN
-  -- Chambres avec réservation active → réservée
-  UPDATE public.chambres c
-  SET statut = 'reservée'
-  WHERE c.statut IN ('disponible', 'reservée')
-    AND EXISTS (
-      SELECT 1 FROM public.reservations r
-      WHERE r.chambre_id = c.id
-        AND r.statut IN ('en_attente', 'confirmee')
-        AND r.date_arrivee <= CURRENT_DATE
-        AND r.date_depart > CURRENT_DATE
-    );
-
-  -- Chambres avec check-in → occupée
-  UPDATE public.chambres c
-  SET statut = 'occupee'
-  WHERE EXISTS (
-    SELECT 1 FROM public.reservations r
-    WHERE r.chambre_id = c.id
-      AND r.statut = 'checkin'
-  );
-
-  -- Chambres sans réservation active → disponible
-  UPDATE public.chambres c
-  SET statut = 'disponible'
-  WHERE c.statut IN ('reservée', 'occupee')
-    AND c.statut != 'maintenance'
-    AND NOT EXISTS (
-      SELECT 1 FROM public.reservations r
-      WHERE r.chambre_id = c.id
-        AND r.statut IN ('en_attente', 'confirmee', 'checkin')
-    );
-END;
-$$ LANGUAGE plpgsql;
-
 -- ============================================================
 -- 15. TRIGGERS
 -- ============================================================
@@ -591,7 +563,7 @@ FROM public.hotels h;
 
 COMMENT ON VIEW public.v_stats_hotel IS 'Vue agrégée des statistiques par hôtel';
 
--- Vue : Taux d'occupation par hôtel (30 derniers jours)
+-- Vue : Taux d'occupation par hôtel
 CREATE OR REPLACE VIEW public.v_taux_occupation AS
 SELECT
   h.id AS hotel_id,
@@ -611,7 +583,7 @@ WHERE h.est_actif = TRUE;
 
 COMMENT ON VIEW public.v_taux_occupation IS 'Taux d''occupation en temps réel par hôtel';
 
--- Vue : Top 5 des chambres les plus réservées par hôtel
+-- Vue : Top des chambres les plus réservées par hôtel
 CREATE OR REPLACE VIEW public.v_top_chambres AS
 SELECT
   c.hotel_id,
@@ -644,7 +616,8 @@ ALTER TABLE public.abonnement_demandes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.codes_acces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
--- ─── Politique générique : super_admin voit tout ──────────────────────────
+-- ─── Politique : super_admin voit tout ──────────────────────────────────
+
 CREATE POLICY "super_admin_acces_total_profiles"
   ON public.profiles FOR ALL
   TO authenticated
@@ -717,7 +690,6 @@ CREATE POLICY "super_admin_acces_total_demandes"
 
 -- ─── Politique : les utilisateurs voient uniquement les données de leur hôtel ──
 
--- Notifications : utilisateur voit ses propres notifications
 CREATE POLICY "utilisateur_voient_leures_notifications"
   ON public.notifications FOR ALL
   TO authenticated
@@ -730,10 +702,6 @@ CREATE POLICY "utilisateur_voient_leures_notifications"
 -- ============================================================
 -- 18. TRIGGER : Création automatique du profil à l'inscription
 -- ============================================================
-
--- Ce trigger se déclenche quand un nouvel utilisateur
--- s'inscrit via Supabase Auth et crée automatiquement
--- son profil dans la table profiles
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -762,39 +730,30 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================================
--- 19. DONNÉES INITIALES (Seed)
--- ============================================================
-
--- (Les données sont insérées via l'API ou le dashboard Super Admin)
--- Le super_admin est créé lors du premier login ou via un script séparé.
-
--- ============================================================
 -- 20. RÉSUMÉ FINAL
 -- ============================================================
 --
 -- TABLES (10) :
---   profiles, hotels, personnel_hotel, chambres, clients,
---   reservations, factures, abonnement_demandes, codes_acces, notifications
+--   hotels → profiles → personnel_hotel → chambres →
+--   clients → reservations → factures
+--   abonnement_demandes, codes_acces, notifications
 --
--- VUES (3) :
---   v_stats_hotel, v_taux_occupation, v_top_chambres
+-- ⚠️ ORDRE CRITIQUE pour éviter les erreurs FK :
+--   1. hotels (sans admin_id FK)
+--   2. profiles (réfère hotels.hotel_id ✓)
+--   3. ALTER hotels ADD admin_id FK → profiles.id ✓
+--   4. personnel_hotel, chambres, clients, etc.
 --
--- FONCTIONS (5) :
---   update_updated_at_column(), generer_numero_facture(),
---   calculer_montants_facture(), calculer_reservation(), generer_code_acces()
---
--- TRIGGERS (5) :
---   profiles_updated_at, reservations_updated_at,
+-- VUES (3) : v_stats_hotel, v_taux_occupation, v_top_chambres
+-- FONCTIONS (5) : update_updated_at, generer_numero_facture,
+--   calculer_montants_facture, calculer_reservation, generer_code_acces
+-- TRIGGERS (5) : profiles_updated_at, reservations_updated_at,
 --   factures_calcul_montants, reservations_calcul, on_auth_user_created
---
 -- INDEX (32) : optimisés pour les requêtes fréquentes
---
 -- RLS (18 politiques) : isolation multi-tenant stricte
---
--- ENUMS (8) : plan_abonnement, type_chambre,
---   statut_chambre, statut_reservation, statut_facture,
---   mode_paiement, type_piece_identite, statut_demande
---
--- DÉCIMALES : Tous les montants en FCFA (DECIMAL 12,2)
+-- ENUMS (8) : plan_abonnement, type_chambre, statut_chambre,
+--   statut_reservation, statut_facture, mode_paiement,
+--   type_piece_identite, statut_demande
 -- TVA PAR DÉFAUT : 18% (taux en vigueur en Côte d'Ivoire)
+-- DEVISE : FCFA (Franc CFA) - DECIMAL(12,2)
 -- ============================================================
