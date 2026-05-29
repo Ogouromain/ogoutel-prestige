@@ -98,7 +98,7 @@ export const STATUTS_CHAMBRE = [
   { id: 'disponible', label: 'Disponible', color: 'bg-emerald-500', textColor: 'text-emerald-500' },
   { id: 'occupee', label: 'Occupée', color: 'bg-red-500', textColor: 'text-red-500' },
   { id: 'maintenance', label: 'Maintenance', color: 'bg-amber-500', textColor: 'text-amber-500' },
-  { id: 'reservée', label: 'Réservée', color: 'bg-blue-500', textColor: 'text-blue-500' },
+  { id: 'reservee', label: 'Réservée', color: 'bg-blue-500', textColor: 'text-blue-500' },
 ] as const;
 
 export type StatutChambre = (typeof STATUTS_CHAMBRE)[number]['id'];
@@ -132,6 +132,7 @@ export const MODES_PAIEMENT = [
   { id: 'mobile_money', label: 'Mobile Money', icon: 'Smartphone' },
   { id: 'virement', label: 'Virement bancaire', icon: 'Building' },
   { id: 'cheque', label: 'Chèque', icon: 'FileText' },
+  { id: 'carte', label: 'Carte bancaire', icon: 'CreditCard' },
 ] as const;
 
 export type ModePaiement = (typeof MODES_PAIEMENT)[number]['id'];

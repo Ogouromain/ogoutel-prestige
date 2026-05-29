@@ -12,7 +12,6 @@ import type {
   ModePaiement,
   PieceIdentite,
   RoleUtilisateur,
-  VilleCI,
 } from '@/lib/constants';
 
 // ─── Utilisateur & Authentification ──────────────────────────────────────────
@@ -20,7 +19,7 @@ import type {
 export interface Profile {
   id: string;
   email: string;
-  full_name: string;
+  full_name: string | null;
   phone: string | null;
   role: RoleUtilisateur;
   hotel_id: string | null;
@@ -43,19 +42,23 @@ export interface Session {
 export interface Hotel {
   id: string;
   nom: string;
-  adresse: string;
-  ville: VilleCI;
-  quartier: string;
-  telephone: string;
-  email: string;
+  adresse: string | null;
+  ville: string | null;
+  quartier: string | null;
+  telephone: string | null;
+  email: string | null;
   logo_url: string | null;
   plan: PlanId;
-  admin_id: string;
+  code_acces_id: string | null;
+  admin_id: string | null;
   nombre_chambres: number;
   est_actif: boolean;
   date_debut_abonnement: string;
   date_fin_abonnement: string;
+  description: string | null;
+  nombre_etoiles: number;
   created_at: string;
+  updated_at: string;
 }
 
 /** Hôtel avec infos de l'administrateur */
@@ -82,6 +85,7 @@ export interface Chambre {
   equipements: string[]; // JSON array
   photo_url: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 /** Chambre avec relations */
@@ -99,14 +103,16 @@ export interface Client {
   id: string;
   hotel_id: string;
   nom: string;
-  prenom: string;
-  telephone: string;
+  prenom: string | null;
+  telephone: string | null;
   email: string | null;
-  piece_identite_type: PieceIdentite;
-  piece_identite_numero: string;
+  piece_identite_type: PieceIdentite | null;
+  piece_identite_numero: string | null;
   nationalite: string;
-  ville_residence: string;
+  ville_residence: string | null;
+  notes: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 /** Client avec ses réservations */
@@ -122,14 +128,15 @@ export type ClientNomComplet = Pick<Client, 'nom' | 'prenom'>;
 export interface Reservation {
   id: string;
   hotel_id: string;
-  chambre_id: string;
-  client_id: string;
+  chambre_id: string | null;
+  client_id: string | null;
   receptionniste_id: string | null;
   date_arrivee: string;
   date_depart: string;
+  /** Calculé automatiquement par la DB : date_depart - date_arrivee */
   nombre_nuits: number;
-  prix_nuit: number;
-  montant_total: number;
+  prix_nuit: number | null;
+  montant_total: number | null;
   montant_paye: number;
   statut: StatutReservation;
   notes: string | null;
@@ -153,15 +160,16 @@ export interface ReservationWithRelations extends Reservation {
 export interface Facture {
   id: string;
   hotel_id: string;
-  reservation_id: string;
-  client_id: string;
+  reservation_id: string | null;
+  client_id: string | null;
   numero_facture: string;
-  montant_ht: number;
+  montant_ht: number | null;
   taux_tva: number;
-  montant_tva: number;
-  montant_ttc: number;
+  montant_tva: number | null;
+  montant_ttc: number | null;
   statut_paiement: StatutFacture;
-  mode_paiement: ModePaiement;
+  mode_paiement: ModePaiement | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -173,17 +181,21 @@ export interface FactureWithRelations extends Facture {
 
 // ─── Personnel d'hôtel ──────────────────────────────────────────────────────
 
+/** Rôle du personnel dans un hôtel (exclut super_admin) */
+export type RolePersonnel = 'gerant' | 'receptionniste';
+
 export interface PersonnelHotel {
   id: string;
   hotel_id: string;
-  user_id: string;
-  role: Exclude<RoleUtilisateur, 'super_admin'>; // admin_hotel | gerant | receptionniste
+  user_id: string | null;
+  role: RolePersonnel;
   nom_complet: string;
-  telephone: string;
-  email: string;
+  telephone: string | null;
+  email: string | null;
   est_actif: boolean;
-  created_by: string;
+  created_by: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 /** Personnel avec infos utilisateur */
@@ -208,7 +220,7 @@ export interface AbonnementDemande {
   ville: string;
   quartier: string | null;
   nombre_chambres: number | null;
-  plan_choisi: 'basique' | 'standard' | 'premium';
+  plan_choisi: PlanId;
   message: string | null;
   statut: StatutDemande;
   notes_admin: string | null;
@@ -230,6 +242,17 @@ export interface CodeAcces {
   date_expiration: string;
   created_at: string;
   used_at: string | null;
+}
+
+// ─── Activités / Journal d'audit ────────────────────────────────────────────
+
+export interface ActiviteLog {
+  id: string;
+  hotel_id: string | null;
+  user_id: string | null;
+  action: string;
+  details: Record<string, unknown>;
+  created_at: string;
 }
 
 // ─── Notifications ───────────────────────────────────────────────────────────
@@ -305,7 +328,7 @@ export interface ContactFormData {
   ville: string;
   quartier: string;
   nombre_chambres: number;
-  plan_choisi: 'basique' | 'standard' | 'premium';
+  plan_choisi: PlanId;
   message: string;
 }
 
@@ -318,26 +341,25 @@ export interface ChambreFormData {
   equipements: string[];
 }
 
+/** Formulaire de réservation — nombre_nuits calculé automatiquement */
 export interface ReservationFormData {
   chambre_id: string;
   client_id: string;
   date_arrivee: string;
   date_depart: string;
-  nombre_nuits: number;
   prix_nuit: number;
-  montant_total: number;
   notes?: string;
 }
 
 export interface ClientFormData {
   nom: string;
-  prenom: string;
-  telephone: string;
+  prenom?: string;
+  telephone?: string;
   email?: string;
-  piece_identite_type: PieceIdentite;
-  piece_identite_numero: string;
-  nationalite: string;
-  ville_residence: string;
+  piece_identite_type?: PieceIdentite;
+  piece_identite_numero?: string;
+  nationality: string;
+  ville_residence?: string;
 }
 
 export interface FactureFormData {
@@ -349,9 +371,9 @@ export interface FactureFormData {
 
 export interface PersonnelFormData {
   nom_complet: string;
-  email: string;
-  telephone: string;
-  role: Exclude<RoleUtilisateur, 'super_admin'>;
+  email?: string;
+  telephone?: string;
+  role: RolePersonnel;
 }
 
 // ─── Pagination & Filtres ────────────────────────────────────────────────────

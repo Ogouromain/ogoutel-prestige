@@ -42,3 +42,33 @@ Work Log:
 Stage Summary:
 - SQL schema clean, aligned with user spec for PARTIE 3
 - Critical trigger bug fixed, lint passes, dev server OK
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Complete schema rewrite - PARTIE 5-11 (hotels, chambres, clients, reservations, factures, personnel_hotel, activites_log)
+
+Work Log:
+- Complete rewrite of supabase/schema.sql (~780 lines)
+- Removed ALL 7 ENUM types → replaced with TEXT+CHECK everywhere
+- Reordered table creation to eliminate ALL circular FK dependencies:
+  abonnement_demandes → codes_acces → hotels → profiles → personnel_hotel → chambres → clients → reservations → factures → activites_log → notifications
+- hotels (PARTIE 5): added code_acces_id, description, nombre_etoiles, updated_at; admin_id → auth.users(id); plan TEXT CHECK; dates → TIMESTAMPTZ
+- chambres (PARTIE 6): type/statut TEXT CHECK; added updated_at; 'reservée' → 'reservee'; etage DEFAULT 1
+- clients (PARTIE 7): many nullable fields; added notes, updated_at; piece_identite_type TEXT CHECK
+- reservations (PARTIE 8): nombre_nuits GENERATED ALWAYS AS STORED; statut default 'confirmee'; TEXT CHECK
+- factures (PARTIE 9): reservation_id nullable; statut_paiement/mode_paiement TEXT CHECK; added 'carte' to mode_paiement; added notes
+- personnel_hotel (PARTIE 10): user_id/created_by → auth.users; role only gerant/receptionniste; added updated_at
+- activites_log (PARTIE 11): NEW table for audit trail
+- Updated calculer_reservation trigger to NOT set GENERATED column nombre_nuits
+- Updated generer_numero_facture for globally unique numbers (no hotel_id param)
+- Added 5 updated_at triggers (hotels, personnel, chambres, clients)
+- Updated src/types/index.ts: Hotel (code_acces_id, description, nombre_etoiles, updated_at, nullable fields), Chambre (updated_at), Client (notes, updated_at, nullable), Reservation (nullable chambre/client/prix/montant), Facture (nullable reservation, notes, carte), PersonnelHotel (RolePersonnel type, nullable user/created_by, updated_at), ActiviteLog (new), RolePersonnel (new type)
+- Updated src/lib/constants.ts: 'reservée' → 'reservee', added 'carte' to MODES_PAIEMENT
+- Lint passes clean, dev server 200 OK
+
+Stage Summary:
+- Complete SQL schema ready for Supabase SQL Editor with 12 tables, 0 ENUMs, all TEXT+CHECK
+- No circular dependencies — clean FK order with single ALTER TABLE for codes_acces.utilise_par
+- 9 triggers, 38 indexes, 20 RLS policies, 3 views, 5 functions
+- All TypeScript types and constants aligned with new schema
