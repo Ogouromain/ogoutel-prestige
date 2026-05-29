@@ -180,6 +180,24 @@ export const clientSchema = z.object({
   ville_residence: z.string().optional(),
 });
 
+// ─── 6b. Check-in ────────────────────────────────────────────────────────────
+
+export const checkInSchema = z.object({
+  reservation_id: z.string().min(1, "L'identifiant de la réservation est requis"),
+  chambre_id: z.string().min(1, "L'identifiant de la chambre est requis"),
+  client_id: z.string().min(1, "L'identifiant du client est requis"),
+  date_arrivee: z.string().min(1, "La date d'arrivée est requise"),
+  date_depart: z.string().min(1, "La date de départ est requise"),
+  nombre_nuits: z
+    .number({ error: 'Le nombre de nuits est requis' })
+    .int('Le nombre de nuits doit être un entier')
+    .min(1, 'Le nombre de nuits doit être au moins 1'),
+  prix_nuit: z
+    .number({ error: 'Le prix par nuit est requis' })
+    .positive('Le prix par nuit doit être positif'),
+  notes: z.string().optional(),
+});
+
 // ─── 7. Facture ──────────────────────────────────────────────────────────────
 
 export const factureSchema = z.object({
@@ -196,6 +214,22 @@ export const factureSchema = z.object({
   }),
 });
 
+// ─── 7b. Dépenses / Charges ─────────────────────────────────────────────────
+
+export const addExpenseSchema = z.object({
+  libelle: z.string().min(2, "Le libellé de la dépense est requis"),
+  montant: z
+    .number({ error: 'Le montant est requis' })
+    .positive('Le montant doit être strictement positif'),
+  categorie: z.string().min(1, 'La catégorie est requise'),
+  date_depense: z.string().min(1, "La date de la dépense est requise"),
+  description: z.string().optional(),
+  mode_paiement: z.enum(MODES_PAIEMENT_LIST, {
+    error: 'Le mode de paiement doit être especes, mobile_money, virement, cheque ou carte',
+  }).optional(),
+  fournisseur: z.string().optional(),
+});
+
 // ─── 8. Personnel ─────────────────────────────────────────────────────────────
 
 export const personnelSchema = z.object({
@@ -208,6 +242,10 @@ export const personnelSchema = z.object({
     error: "Le rôle doit être gérant ou réceptionniste",
   }),
 });
+
+// ─── 8b. Abonnement (landing page) ───────────────────────────────────────────
+
+export const subscriptionFormSchema = contactSubscriptionSchema;
 
 // ─── 9. Code d'accès ──────────────────────────────────────────────────────────
 
@@ -268,6 +306,16 @@ export type FactureOutput = z.output<typeof factureSchema>;
 export type PersonnelInput = z.input<typeof personnelSchema>;
 /** Type de sortie validée du formulaire personnel */
 export type PersonnelOutput = z.output<typeof personnelSchema>;
+
+/** Type d'entrée du formulaire check-in */
+export type CheckInInput = z.input<typeof checkInSchema>;
+/** Type de sortie validée du formulaire check-in */
+export type CheckInOutput = z.output<typeof checkInSchema>;
+
+/** Type d'entrée du formulaire dépense */
+export type AddExpenseInput = z.input<typeof addExpenseSchema>;
+/** Type de sortie validée du formulaire dépense */
+export type AddExpenseOutput = z.output<typeof addExpenseSchema>;
 
 /** Type d'entrée du code d'activation */
 export type ActivationCodeInput = z.input<typeof activationCodeSchema>;

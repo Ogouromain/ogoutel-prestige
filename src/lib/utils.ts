@@ -57,6 +57,28 @@ export function formatHeure(date: string): string {
   }
 }
 
+// ─── Formatage Téléphone ────────────────────────────────────────────────────
+
+/** Formate un numéro téléphone CI : "002250756103277" → "+225 07 56 10 32 77" */
+export function formatPhone(telephone: string): string {
+  const cleaned = telephone.replace(/[\s.()-]/g, "");
+  // Supprime le préfixe international
+  const withoutPrefix = cleaned.replace(/^(\+225|00225)/, "");
+  if (withoutPrefix.length === 10) {
+    return `+225 ${withoutPrefix.slice(0, 2)} ${withoutPrefix.slice(2, 4)} ${withoutPrefix.slice(4, 6)} ${withoutPrefix.slice(6, 8)} ${withoutPrefix.slice(8, 10)}`;
+  }
+  // Retourne tel quel si le format n'est pas reconnu
+  return telephone;
+}
+
+// ─── Plan Features ───────────────────────────────────────────────────────────
+
+/** Retourne les fonctionnalités d'un plan d'abonnement */
+export function getPlanFeatures(planId: string): string[] {
+  const planObj = PLANS_ABONNEMENT[planId as PlanId];
+  return planObj?.fonctionnalites ?? [];
+}
+
 // ─── Calculs Réservation ─────────────────────────────────────────────────────
 
 /** Calcule le nombre de nuits entre deux dates */
@@ -74,7 +96,15 @@ export function calculerMontantTotal(prixNuit: number, nombreNuits: number): num
   return prixNuit * Math.max(0, nombreNuits);
 }
 
-// ─── Génération Numéros ──────────────────────────────────────────────────────
+// ─── Génération Codes ──────────────────────────────────────────────────────
+
+/** Génère un code d'activation OGT-XXXX-XXXX */
+export function generateActivationCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const segment = () =>
+    Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return `OGT-${segment()}-${segment()}`;
+}
 
 /** Génère un numéro de facture : FAC-2025-0001 */
 let compteurFacture = 0;

@@ -255,6 +255,11 @@ export function getLibelleStatutDemande(id: StatutDemande): string {
   return STATUTS_DEMANDE.find((s) => s.id === id)?.label ?? id;
 }
 
+/** Retourne le libellé d'une catégorie de dépense */
+export function getLibelleCategorieDepense(id: string): string {
+  return CATEGORIES_DEPENSES.find((c) => c.id === id)?.label ?? id;
+}
+
 // ─── Application ─────────────────────────────────────────────────────────────
 
 /** Nom de l'application (public) */
@@ -338,6 +343,64 @@ export const EQUIPEMENTS_CHAMBRE = [
 ] as const;
 
 export type EquipementChambre = (typeof EQUIPEMENTS_CHAMBRE)[number]["id"];
+
+// ─── Catégories de dépenses ──────────────────────────────────────────────
+
+export const CATEGORIES_DEPENSES = [
+  { id: 'fournitures', label: 'Fournitures', icon: 'Package' },
+  { id: 'entretien', label: 'Entretien & nettoyage', icon: 'Sparkles' },
+  { id: 'alimentation', label: 'Alimentation & petit-déjeuner', icon: 'Coffee' },
+  { id: 'energie', label: 'Énergie (électricité, eau)', icon: 'Zap' },
+  { id: 'telecommunications', label: 'Télécommunications & Internet', icon: 'Wifi' },
+  { id: 'maintenance', label: 'Maintenance & réparations', icon: 'Wrench' },
+  { id: 'personnel', label: 'Salaires & charges personnel', icon: 'Users' },
+  { id: 'marketing', label: 'Marketing & publicité', icon: 'Megaphone' },
+  { id: 'assurance', label: 'Assurances', icon: 'Shield' },
+  { id: 'loisir', label: 'Loisirs & équipements communs', icon: 'Gamepad2' },
+  { id: 'transport', label: 'Transport & logistique', icon: 'Truck' },
+  { id: 'linge', label: 'Linge & blanchisserie', icon: 'Shirt' },
+  { id: 'taxes', label: 'Taxes & impôts', icon: 'Receipt' },
+  { id: 'autre', label: 'Autre', icon: 'MoreHorizontal' },
+] as const;
+
+export type CategorieDepense = (typeof CATEGORIES_DEPENSES)[number]['id'];
+
+// ─── Nationalités fréquentes en Côte d'Ivoire ────────────────────────────
+
+export const NATIONALITES_CI = [
+  'Ivoirienne',
+  'Malianne',
+  'Burkinabè',
+  'Ghanéenne',
+  'Guinéenne',
+  'Sénégalaise',
+  'Nigériane',
+  'Camerounaise',
+  'Liberienne',
+  'Sierraléonaise',
+  'Togolaise',
+  'Béninoise',
+  'Congolaise',
+  'Congolaise (RDC)',
+  'Française',
+  'Américaine',
+  'Britannique',
+  'Allemande',
+  'Belge',
+  'Suisse',
+  'Canadienne',
+  'Chinoise',
+  'Indienne',
+  'Libanaise',
+  'Marocaine',
+  'Tunisienne',
+  'Algérienne',
+  'Comorienne',
+  'Mauritanienne',
+  'Autre',
+] as const;
+
+export type Nationalite = (typeof NATIONALITES_CI)[number];
 
 // ─── Jours de la semaine (français) ──────────────────────────────────────
 
