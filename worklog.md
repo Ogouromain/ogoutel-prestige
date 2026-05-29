@@ -84,3 +84,32 @@ Stage Summary:
 - RLS SQL with 40+ granular policies across 11 tables
 - ESLint passes with 0 errors, 0 warnings
 - Dev server running, pages load successfully
+
+---
+Task ID: 3
+Agent: Main Developer
+Task: Create utility pages and state management components for OGOUTEL_Prestige
+
+Work Log:
+- Created `components/ui/LoadingSpinner.tsx` — Spinner with sm/md/lg/xl sizes, default/white/dark variants, fullscreen option, label support
+- Created `components/ui/ErrorMessage.tsx` — Error display with title, message, retry button, default/compact variants
+- Created `components/ui/SuccessMessage.tsx` — Success display with action button, default/compact variants
+- Created `components/ui/StatsCard.tsx` — Stat card with icon, value, trend (up/down %), configurable colors, loading skeleton, framer-motion animation
+- Created `components/ui/PageHeader.tsx` — Page header with title, description, icon, actions slot
+- Created `components/ui/ConfirmDialog.tsx` — Confirmation modal using shadcn AlertDialog, danger/warning/info variants with icons, loading state
+- Created `components/ui/DataTable.tsx` — Full-featured reusable table with @tanstack/react-table: pagination, search, column sort, CSV export, multi-row selection, column visibility toggle, loading skeleton, empty state
+- Created `components/shared/Notifications.tsx` — Notification center with: useNotifications hook (Supabase realtime), NotificationBell dropdown, unread badge, mark read/delete, toast helpers (success/error/info/warning/promise), optional sound notification
+- Created `app/suspended/page.tsx` — Subscription suspended page with building illustration, email (omouitsi@gmail.com) and WhatsApp (+2250576103277) contact, CTA buttons
+- Created `app/not-found.tsx` — Elegant 404 page with large "404" background, back/home/login buttons
+- Created `app/error.tsx` — Global error boundary with error details (dev mode), retry button, support link
+- Created `app/loading.tsx` — Global loading state using LoadingSpinner component
+- Updated middleware constant PAGE_ABONNEMENT_SUSPENDU to "/suspended" to match new page path
+- ESLint passes with 0 errors (1 warning about TanStack Table React Compiler compatibility)
+
+Stage Summary:
+- 12 files created/updated
+- 6 reusable UI components with full TypeScript typing
+- DataTable supports: pagination, search, sort, CSV export, row selection, column visibility
+- Notifications system with Supabase realtime + toast helpers
+- 4 app pages (suspended, not-found, error, loading) following OGOUTEL design system
+- All components use shadcn/ui primitives, Tailwind, framer-motion, French language
