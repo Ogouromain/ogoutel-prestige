@@ -1,42 +1,50 @@
 -- ============================================================
--- OGOUTEL_Prestige - Schéma Complet de la Base de Données
+-- OGOUTEL_Prestige - SCRIPT COMPLET DE REMPLACEMENT
 -- Fichier : supabase/schema.sql
 -- Base de données : Supabase (PostgreSQL 15)
 -- Application SaaS multi-tenant de Gestion Hôtelière
 -- Pays : Côte d'Ivoire | Devise : FCFA
 -- ============================================================
 --
+-- ⚠️  CE SCRIPT SUPPRIME ET RECRÉE TOUTES LES TABLES.
+--     À utiliser uniquement pour une réinstallation complète.
+--
 -- RÈGLES :
 --   - Compatible PostgreSQL 15
---   - Idempotent (IF NOT EXISTS / OR REPLACE partout)
---   - Commentaires en français
 --   - Zéro ENUM — tout en TEXT + CHECK
+--   - Commentaires en français
+--   - Ordre correct de création
 --
--- ORDRE DE CRÉATION (dépendances FK respectées) :
---   1. abonnement_demandes  (aucune FK)
---   2. codes_acces          (FK → abonnement_demandes)
---   3. hotels               (FK → codes_acces, auth.users)
---   4. profiles             (FK → hotels, auth.users)
---   5. ALTER codes_acces    (FK utilise_par → profiles)
---   6. personnel_hotel      (FK → hotels, auth.users)
---   7. chambres             (FK → hotels)
---   8. clients              (FK → hotels)
---   9. reservations         (FK → hotels, chambres, clients, profiles)
---  10. factures             (FK → hotels, reservations, clients)
---  11. activites_log        (FK → hotels, auth.users)
---  12. notifications        (FK → profiles, hotels)
 -- ============================================================
 
 
 -- ============================================================
--- 0. NETTOYAGE (décommenter pour une réinstallation propre)
+-- PHASE 0 : NETTOYAGE COMPLET
+--     Supprime TOUT : vues, triggers, fonctions, tables, types
 -- ============================================================
--- ⚠️ Décommenter les lignes ci-dessous SEULEMENT pour tout
---    recréer de zéro. Sinon, laisser commenté pour exécution
---    idempotente (les CREATE IF NOT EXISTS ignoreront ce qui existe).
 
-/*
+-- Suppression des vues
+DROP VIEW IF EXISTS public.v_top_chambres CASCADE;
+DROP VIEW IF EXISTS public.v_taux_occupation CASCADE;
+DROP VIEW IF EXISTS public.v_stats_hotel CASCADE;
+
+-- Suppression des triggers sur auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Suppression de toutes les fonctions personnalisées
+DROP FUNCTION IF EXISTS public.update_updated_at_column() CASCADE;
+DROP FUNCTION IF EXISTS public.generer_numero_facture() CASCADE;
+DROP FUNCTION IF EXISTS public.calculer_montants_facture() CASCADE;
+DROP FUNCTION IF EXISTS public.calculer_reservation() CASCADE;
+DROP FUNCTION IF EXISTS public.generer_code_acces() CASCADE;
+DROP FUNCTION IF EXISTS public.update_hotel_chambres_count() CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+DROP FUNCTION IF EXISTS public.get_hotel_stats(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.get_super_admin_stats() CASCADE;
+DROP FUNCTION IF EXISTS public.is_super_admin() CASCADE;
+DROP FUNCTION IF EXISTS public.get_user_hotel_id() CASCADE;
+
+-- Suppression de toutes les tables (CASCADE supprime les FK, triggers, etc.)
 DROP TABLE IF EXISTS public.notifications CASCADE;
 DROP TABLE IF EXISTS public.activites_log CASCADE;
 DROP TABLE IF EXISTS public.factures CASCADE;
@@ -48,11 +56,21 @@ DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TABLE IF EXISTS public.codes_acces CASCADE;
 DROP TABLE IF EXISTS public.hotels CASCADE;
 DROP TABLE IF EXISTS public.abonnement_demandes CASCADE;
-*/
+
+-- Suppression des anciens ENUMs (s'ils existent encore)
+DROP TYPE IF EXISTS statut_demande CASCADE;
+DROP TYPE IF EXISTS plan_abonnement CASCADE;
+DROP TYPE IF EXISTS type_chambre CASCADE;
+DROP TYPE IF EXISTS statut_chambre CASCADE;
+DROP TYPE IF EXISTS statut_reservation CASCADE;
+DROP TYPE IF EXISTS statut_facture CASCADE;
+DROP TYPE IF EXISTS mode_paiement CASCADE;
+DROP TYPE IF EXISTS type_piece_identite CASCADE;
+DROP TYPE IF EXISTS role_utilisateur CASCADE;
 
 
 -- ============================================================
--- 1. EXTENSIONS
+-- PHASE 1 : EXTENSIONS
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -60,14 +78,205 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 
 -- ============================================================
--- 2. TABLES — Création dans l'ordre des dépendances FK
+-- PHASE 2 : FONCTIONS (créées AVANT les triggers qui les utilisent)
+-- ============================================================
+
+-- ─── 2.1 Mise à jour automatique de updated_at ───
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ─── 2.2 Génère un numéro de facture globalement unique ───
+
+CREATE OR REPLACE FUNCTION public.generer_numero_facture()
+RETURNS TEXT AS $$
+DECLARE
+  v_annee TEXT := TO_CHAR(NOW(), 'YYYY');
+  v_compteur INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_compteur
+  FROM public.factures
+  WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW());
+
+  v_compteur := COALESCE(v_compteur, 0) + 1;
+  RETURN 'FAC-' || v_annee || '-' || LPAD(v_compteur::TEXT, 6, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+-- ─── 2.3 Calcule automatiquement TVA et TTC sur factures ───
+
+CREATE OR REPLACE FUNCTION public.calculer_montants_facture()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.montant_tva := ROUND(NEW.montant_ht * (NEW.taux_tva / 100.0), 2);
+  NEW.montant_ttc := ROUND(NEW.montant_ht + NEW.montant_tva, 2);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ─── 2.4 Calcule le montant total d'une réservation ───
+
+CREATE OR REPLACE FUNCTION public.calculer_reservation()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.montant_total := ROUND(
+    (NEW.date_depart - NEW.date_arrivee) * COALESCE(NEW.prix_nuit, 0),
+    2
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ─── 2.5 Génère un code d'accès aléatoire de 8 caractères ───
+
+CREATE OR REPLACE FUNCTION public.generer_code_acces()
+RETURNS TEXT AS $$
+DECLARE
+  chars TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  result TEXT := '';
+  i INTEGER;
+BEGIN
+  FOR i IN 1..8 LOOP
+    result := result || SUBSTRING(chars, FLOOR(RANDOM() * LENGTH(chars)) + 1, 1);
+  END LOOP;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ─── 2.6 Met à jour hotels.nombre_chambres après INSERT/DELETE chambre ───
+
+CREATE OR REPLACE FUNCTION public.update_hotel_chambres_count()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_hotel_id UUID;
+BEGIN
+  v_hotel_id := COALESCE(NEW.hotel_id, OLD.hotel_id);
+  UPDATE public.hotels
+  SET nombre_chambres = (
+    SELECT COUNT(*) FROM public.chambres WHERE hotel_id = v_hotel_id
+  )
+  WHERE id = v_hotel_id;
+
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ─── 2.7 Création automatique du profil à l'inscription ───
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role, is_active)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.raw_user_meta_data->>'nom_complet',
+      split_part(NEW.email, '@', 1)
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data->>'role',
+      'receptionniste'
+    ),
+    TRUE
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ─── 2.8 Statistiques par hôtel → JSON ───
+
+CREATE OR REPLACE FUNCTION public.get_hotel_stats(p_hotel_id UUID)
+RETURNS JSON AS $$
+DECLARE
+  v_stats JSON;
+BEGIN
+  SELECT json_build_object(
+    'total_chambres',        COUNT(*),
+    'chambres_disponibles',  COUNT(*) FILTER (WHERE statut = 'disponible'),
+    'chambres_occupees',     COUNT(*) FILTER (WHERE statut = 'occupee'),
+    'reservations_actives',  (
+      SELECT COUNT(*) FROM public.reservations
+      WHERE hotel_id = p_hotel_id
+        AND statut IN ('en_attente', 'confirmee', 'checkin')
+    ),
+    'revenus_mois_actuel',   COALESCE((
+      SELECT SUM(montant_total) FROM public.reservations
+      WHERE hotel_id = p_hotel_id
+        AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM created_at)  = EXTRACT(YEAR FROM CURRENT_DATE)
+    ), 0)
+  ) INTO v_stats
+  FROM public.chambres
+  WHERE hotel_id = p_hotel_id;
+
+  RETURN v_stats;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ─── 2.9 Statistiques globales super_admin → TABLE ───
+
+CREATE OR REPLACE FUNCTION public.get_super_admin_stats()
+RETURNS TABLE (
+  total_hotels        BIGINT,
+  hotels_actifs       BIGINT,
+  total_utilisateurs  BIGINT,
+  demandes_en_attente BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    (SELECT COUNT(*) FROM public.hotels),
+    (SELECT COUNT(*) FROM public.hotels WHERE est_actif = TRUE),
+    (SELECT COUNT(*) FROM public.profiles),
+    (SELECT COUNT(*) FROM public.abonnement_demandes WHERE statut = 'en_attente');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ─── 2.10 Vérifie si l'utilisateur courant est super_admin ───
+
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'super_admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+-- ─── 2.11 Retourne le hotel_id de l'utilisateur courant ───
+
+CREATE OR REPLACE FUNCTION public.get_user_hotel_id()
+RETURNS UUID AS $$
+DECLARE
+  v_hotel_id UUID;
+BEGIN
+  SELECT hotel_id INTO v_hotel_id
+  FROM public.profiles
+  WHERE id = auth.uid();
+
+  RETURN v_hotel_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+
+-- ============================================================
+-- PHASE 3 : TABLES (créées dans l'ordre des dépendances FK)
 -- ============================================================
 
 -- ────────────────────────────────────────────────────────────
--- 2.1 TABLE : abonnement_demandes (PARTIE 3 — Landing page)
+-- 3.1 TABLE : abonnement_demandes (aucune FK)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.abonnement_demandes (
+CREATE TABLE public.abonnement_demandes (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nom_complet       TEXT NOT NULL,
   email             TEXT NOT NULL,
@@ -92,12 +301,10 @@ COMMENT ON COLUMN public.abonnement_demandes.notes_admin IS 'Notes internes pour
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.2 TABLE : codes_acces
---     Créé AVANT hotels (hotels.code_acces_id le référence)
---     FK utilise_par ajoutée APRÈS profiles (via ALTER TABLE)
+-- 3.2 TABLE : codes_acces (FK → abonnement_demandes)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.codes_acces (
+CREATE TABLE public.codes_acces (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code                TEXT NOT NULL,
   plan                TEXT NOT NULL CHECK (plan IN ('basique', 'standard', 'premium')),
@@ -119,11 +326,10 @@ COMMENT ON COLUMN public.codes_acces.code IS 'Code unique de 8 caractères alpha
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.3 TABLE : hotels (PARTIE 5)
---     admin_id → auth.users (pas de dépendance circulaire)
+-- 3.3 TABLE : hotels (FK → codes_acces, auth.users)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.hotels (
+CREATE TABLE public.hotels (
   id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nom                       TEXT NOT NULL,
   adresse                   TEXT,
@@ -157,11 +363,10 @@ COMMENT ON COLUMN public.hotels.nombre_etoiles IS 'Classement étoiles (0-5)';
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.4 TABLE : profiles
---     Extension de auth.users — lié via trigger (PARTIE 12)
+-- 3.4 TABLE : profiles (FK → hotels, auth.users)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.profiles (
+CREATE TABLE public.profiles (
   id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email           TEXT UNIQUE NOT NULL,
   full_name       TEXT,
@@ -178,8 +383,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   CONSTRAINT profiles_role_super_admin_sans_hotel CHECK (
     role != 'super_admin' OR hotel_id IS NULL
   )
-  -- ⚠️ Pas de contrainte hotel_id NOT NULL car le trigger
-  --    handle_new_user() crée le profil AVANT l'affectation
 );
 
 COMMENT ON TABLE public.profiles IS 'Profils utilisateurs — extension de auth.users';
@@ -188,24 +391,19 @@ COMMENT ON COLUMN public.profiles.email IS 'Email unique identique à auth.users
 COMMENT ON COLUMN public.profiles.role IS 'Rôle SaaS : super_admin | admin_hotel | gerant | receptionniste';
 COMMENT ON COLUMN public.profiles.hotel_id IS 'Hôtel d''affectation (NULL = super_admin global)';
 
-
--- ─── FK codes_acces.utilise_par → profiles.id (idempotent) ──
-
-DO $$ BEGIN
-  ALTER TABLE public.codes_acces
-    ADD CONSTRAINT codes_acces_utilise_par_fkey
-    FOREIGN KEY (utilise_par) REFERENCES public.profiles(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Ajout FK codes_acces.utilise_par → profiles.id
+ALTER TABLE public.codes_acces
+  ADD CONSTRAINT codes_acces_utilise_par_fkey
+  FOREIGN KEY (utilise_par) REFERENCES public.profiles(id) ON DELETE SET NULL;
 
 COMMENT ON COLUMN public.codes_acces.utilise_par IS 'Utilisateur ayant utilisé le code';
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.5 TABLE : personnel_hotel (PARTIE 10)
+-- 3.5 TABLE : personnel_hotel (FK → hotels, auth.users)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.personnel_hotel (
+CREATE TABLE public.personnel_hotel (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id        UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
   user_id         UUID REFERENCES auth.users(id),
@@ -227,10 +425,10 @@ COMMENT ON COLUMN public.personnel_hotel.role IS 'Rôle au sein de l''hôtel : g
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.6 TABLE : chambres (PARTIE 6)
+-- 3.6 TABLE : chambres (FK → hotels)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.chambres (
+CREATE TABLE public.chambres (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id        UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
   numero          TEXT NOT NULL,
@@ -255,10 +453,10 @@ COMMENT ON COLUMN public.chambres.equipements IS 'Liste JSON des équipements';
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.7 TABLE : clients (PARTIE 7)
+-- 3.7 TABLE : clients (FK → hotels)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.clients (
+CREATE TABLE public.clients (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id                UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
   nom                     TEXT NOT NULL,
@@ -280,11 +478,11 @@ COMMENT ON TABLE public.clients IS 'Clients enregistrés dans chaque hôtel';
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.8 TABLE : reservations (PARTIE 8)
+-- 3.8 TABLE : reservations (FK → hotels, chambres, clients, profiles)
 --     ⚠️ nombre_nuits est GENERATED ALWAYS AS STORED
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.reservations (
+CREATE TABLE public.reservations (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id            UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
   chambre_id          UUID REFERENCES public.chambres(id),
@@ -313,10 +511,10 @@ COMMENT ON COLUMN public.reservations.nombre_nuits IS 'Calculé auto = date_depa
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.9 TABLE : factures (PARTIE 9)
+-- 3.9 TABLE : factures (FK → hotels, reservations, clients)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.factures (
+CREATE TABLE public.factures (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id            UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
   reservation_id      UUID REFERENCES public.reservations(id),
@@ -344,10 +542,10 @@ COMMENT ON COLUMN public.factures.taux_tva IS 'Taux TVA en % (18 par défaut en 
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.10 TABLE : activites_log (PARTIE 11)
+-- 3.10 TABLE : activites_log (FK → hotels, auth.users)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.activites_log (
+CREATE TABLE public.activites_log (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id        UUID REFERENCES public.hotels(id),
   user_id         UUID REFERENCES auth.users(id),
@@ -360,10 +558,10 @@ COMMENT ON TABLE public.activites_log IS 'Journal d''activité — audit trail p
 
 
 -- ────────────────────────────────────────────────────────────
--- 2.11 TABLE : notifications
+-- 3.11 TABLE : notifications (FK → profiles, hotels)
 -- ────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.notifications (
+CREATE TABLE public.notifications (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   hotel_id        UUID REFERENCES public.hotels(id) ON DELETE CASCADE,
@@ -383,317 +581,7 @@ COMMENT ON TABLE public.notifications IS 'Notifications in-app pour les utilisat
 
 
 -- ============================================================
--- 2b. MIGRATIONS — Ajout de colonnes manquantes sur tables existantes
---     Nécessaire si les tables ont été créées dans une version
---     antérieure du schéma (CREATE IF NOT EXISTS les saute).
---     Utilise un bloc DO pour chaque ALTER afin d'être idempotent.
--- ============================================================
-
--- ─── abonnement_demandes : ajouter notes_admin et updated_at ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'abonnement_demandes' AND column_name = 'notes_admin'
-  ) THEN
-    ALTER TABLE public.abonnement_demandes ADD COLUMN notes_admin TEXT;
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'abonnement_demandes' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.abonnement_demandes ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-  END IF;
-END $$;
-
--- ─── abonnement_demandes : migrer statut ENUM → TEXT si nécessaire ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'statut_demande'
-  ) THEN
-    -- Supprimer le trigger updated_at temporairement
-    DROP TRIGGER IF EXISTS abonnement_demandes_updated_at ON public.abonnement_demandes;
-    -- Changer le type de la colonne
-    ALTER TABLE public.abonnement_demandes
-      ALTER COLUMN statut TYPE TEXT USING statut::TEXT;
-    ALTER TABLE public.abonnement_demandes
-      ALTER COLUMN plan_choisi TYPE TEXT USING plan_choisi::TEXT;
-    -- Mettre à jour les valeurs de statut (anciennes → nouvelles)
-    UPDATE public.abonnement_demandes SET statut = 'en_attente' WHERE statut IN ('approuvee', 'rejetee');
-    UPDATE public.abonnement_demandes SET statut = 'contacte'  WHERE statut = 'code_envoye';
-    -- Supprimer l'ancienne contrainte CHECK
-    ALTER TABLE public.abonnement_demandes DROP CONSTRAINT IF EXISTS abonnement_demandes_statut_check;
-    -- Ajouter la nouvelle contrainte CHECK avec les nouvelles valeurs
-    ALTER TABLE public.abonnement_demandes ADD CONSTRAINT abonnement_demandes_statut_check
-      CHECK (statut IN ('en_attente', 'contacte', 'paye', 'active'));
-    -- Supprimer l'ENUM obsolète
-    DROP TYPE IF EXISTS statut_demande CASCADE;
-    -- Re-créer le trigger
-    CREATE TRIGGER abonnement_demandes_updated_at
-      BEFORE UPDATE ON public.abonnement_demandes
-      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-END $$;
-
--- ─── abonnement_demandes : si statut est déjà TEXT avec ancienne contrainte CHECK ───
-DO $$ DECLARE
-  v_has_old_check BOOLEAN;
-BEGIN
-  SELECT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'public.abonnement_demandes'::regclass
-      AND conname = 'abonnement_demandes_statut_check'
-      AND pg_get_constraintdef(oid) LIKE '%approuvee%'
-  ) INTO v_has_old_check;
-  
-  IF v_has_old_check THEN
-    UPDATE public.abonnement_demandes SET statut = 'en_attente' WHERE statut IN ('approuvee', 'rejetee');
-    UPDATE public.abonnement_demandes SET statut = 'contacte'  WHERE statut = 'code_envoye';
-    ALTER TABLE public.abonnement_demandes DROP CONSTRAINT abonnement_demandes_statut_check;
-    ALTER TABLE public.abonnement_demandes ADD CONSTRAINT abonnement_demandes_statut_check
-      CHECK (statut IN ('en_attente', 'contacte', 'paye', 'active'));
-  END IF;
-END $$;
-
-
--- ─── hotels : ajouter colonnes manquantes ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'code_acces_id'
-  ) THEN
-    ALTER TABLE public.hotels ADD COLUMN code_acces_id UUID REFERENCES public.codes_acces(id) ON DELETE SET NULL;
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'description'
-  ) THEN
-    ALTER TABLE public.hotels ADD COLUMN description TEXT;
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'nombre_etoiles'
-  ) THEN
-    ALTER TABLE public.hotels ADD COLUMN nombre_etoiles INTEGER DEFAULT 0 CHECK (nombre_etoiles BETWEEN 0 AND 5);
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.hotels ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-  END IF;
-END $$;
-
--- ─── hotels : migrer plan ENUM → TEXT si nécessaire ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'plan_abonnement'
-  ) THEN
-    DROP TRIGGER IF EXISTS hotels_updated_at ON public.hotels;
-    ALTER TABLE public.hotels
-      ALTER COLUMN plan TYPE TEXT USING plan::TEXT;
-    DROP TYPE IF EXISTS plan_abonnement CASCADE;
-    CREATE TRIGGER hotels_updated_at
-      BEFORE UPDATE ON public.hotels
-      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-END $$;
-
--- ─── hotels : migrer date_debut/date_fin DATE → TIMESTAMPTZ si nécessaire ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'hotels'
-      AND column_name = 'date_debut_abonnement' AND data_type = 'date'
-  ) THEN
-    ALTER TABLE public.hotels ALTER COLUMN date_debut_abonnement TYPE TIMESTAMPTZ USING date_debut_abonnement::TIMESTAMPTZ;
-    ALTER TABLE public.hotels ALTER COLUMN date_fin_abonnement TYPE TIMESTAMPTZ USING date_fin_abonnement::TIMESTAMPTZ;
-    ALTER TABLE public.hotels ALTER COLUMN date_debut_abonnement SET DEFAULT NOW();
-    ALTER TABLE public.hotels ALTER COLUMN date_fin_abonnement SET DEFAULT (NOW() + INTERVAL '30 days');
-  END IF;
-END $$;
-
-
--- ─── chambres : ajouter colonnes manquantes ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'chambres' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.chambres ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-  END IF;
-END $$;
-
--- ─── chambres : migrer type ENUM → TEXT si nécessaire ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'type_chambre'
-  ) THEN
-    DROP TRIGGER IF EXISTS chambres_updated_at ON public.chambres;
-    ALTER TABLE public.chambres
-      ALTER COLUMN type TYPE TEXT USING type::TEXT;
-    DROP TYPE IF EXISTS type_chambre CASCADE;
-    CREATE TRIGGER chambres_updated_at
-      BEFORE UPDATE ON public.chambres
-      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-END $$;
-
--- ─── chambres : migrer statut ENUM → TEXT si nécessaire ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'statut_chambre'
-  ) THEN
-    ALTER TABLE public.chambres
-      ALTER COLUMN statut TYPE TEXT USING statut::TEXT;
-    -- Corriger 'réservée' avec accent en 'reservee' sans accent
-    UPDATE public.chambres SET statut = 'reservee' WHERE statut = 'réservée';
-    DROP TYPE IF EXISTS statut_chambre CASCADE;
-  END IF;
-END $$;
-
-
--- ─── clients : ajouter colonnes manquantes ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'clients' AND column_name = 'notes'
-  ) THEN
-    ALTER TABLE public.clients ADD COLUMN notes TEXT;
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'clients' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.clients ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-  END IF;
-END $$;
-
--- ─── clients : migrer piece_identite_type ENUM → TEXT ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'type_piece_identite'
-  ) THEN
-    ALTER TABLE public.clients
-      ALTER COLUMN piece_identite_type TYPE TEXT USING piece_identite_type::TEXT;
-    DROP TYPE IF EXISTS type_piece_identite CASCADE;
-  END IF;
-END $$;
-
-
--- ─── reservations : ajouter updated_at si manquant ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'reservations' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.reservations ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-  END IF;
-END $$;
-
--- ─── reservations : migrer statut ENUM → TEXT ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'statut_reservation'
-  ) THEN
-    DROP TRIGGER IF EXISTS reservations_updated_at ON public.reservations;
-    ALTER TABLE public.reservations
-      ALTER COLUMN statut TYPE TEXT USING statut::TEXT;
-    DROP TYPE IF EXISTS statut_reservation CASCADE;
-    CREATE TRIGGER reservations_updated_at
-      BEFORE UPDATE ON public.reservations
-      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-END $$;
-
-
--- ─── factures : ajouter notes + 'carte' au mode_paiement ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'factures' AND column_name = 'notes'
-  ) THEN
-    ALTER TABLE public.factures ADD COLUMN notes TEXT;
-  END IF;
-END $$;
-
--- ─── factures : migrer statut_paiement ENUM → TEXT ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'statut_facture'
-  ) THEN
-    ALTER TABLE public.factures
-      ALTER COLUMN statut_paiement TYPE TEXT USING statut_paiement::TEXT;
-    DROP TYPE IF EXISTS statut_facture CASCADE;
-  END IF;
-END $$;
-
--- ─── factures : migrer mode_paiement ENUM → TEXT + ajouter 'carte' ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'mode_paiement'
-  ) THEN
-    ALTER TABLE public.factures
-      ALTER COLUMN mode_paiement TYPE TEXT USING mode_paiement::TEXT;
-    -- Supprimer l'ancienne contrainte CHECK si elle existe
-    ALTER TABLE public.factures DROP CONSTRAINT IF EXISTS factures_mode_paiement_check;
-    -- Ajouter la nouvelle contrainte avec 'carte' inclus
-    ALTER TABLE public.factures ADD CONSTRAINT factures_mode_paiement_check
-      CHECK (mode_paiement IN ('especes', 'mobile_money', 'virement', 'cheque', 'carte'));
-    DROP TYPE IF EXISTS mode_paiement CASCADE;
-  END IF;
-END $$;
-
--- ─── factures : rendre reservation_id nullable ───
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'factures'
-      AND column_name = 'reservation_id' AND is_nullable = 'NO'
-  ) THEN
-    ALTER TABLE public.factures ALTER COLUMN reservation_id DROP NOT NULL;
-  END IF;
-END $$;
-
-
--- ─── personnel_hotel : ajouter updated_at si manquant ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'personnel_hotel' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.personnel_hotel ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-  END IF;
-END $$;
-
-
--- ─── profiles : ajouter updated_at si manquant ───
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.profiles ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-  END IF;
-END $$;
-
-
--- ============================================================
--- 3. INDEX — Optimisation des requêtes fréquentes
+-- PHASE 4 : INDEX — Optimisation des requêtes fréquentes
 -- ============================================================
 
 -- Index profiles
@@ -762,278 +650,72 @@ CREATE INDEX IF NOT EXISTS idx_notifications_hotel_id ON public.notifications(ho
 
 
 -- ============================================================
--- 4. FONCTIONS UTILITAIRES (PARTIE 14)
+-- PHASE 5 : TRIGGERS
 -- ============================================================
 
--- ─── 4.1 Mise à jour automatique de updated_at (PARTIE 12.1) ───
+-- ─── 5.1 Auto-update updated_at (7 tables) ───
 
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ─── 4.2 Génère un numéro de facture globalement unique ───
-
-CREATE OR REPLACE FUNCTION public.generer_numero_facture()
-RETURNS TEXT AS $$
-DECLARE
-  v_annee TEXT := TO_CHAR(NOW(), 'YYYY');
-  v_compteur INTEGER;
-BEGIN
-  SELECT COUNT(*) INTO v_compteur
-  FROM public.factures
-  WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW());
-
-  v_compteur := COALESCE(v_compteur, 0) + 1;
-  RETURN 'FAC-' || v_annee || '-' || LPAD(v_compteur::TEXT, 6, '0');
-END;
-$$ LANGUAGE plpgsql;
-
--- ─── 4.3 Calcule automatiquement TVA et TTC sur factures ───
-
-CREATE OR REPLACE FUNCTION public.calculer_montants_facture()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.montant_tva := ROUND(NEW.montant_ht * (NEW.taux_tva / 100.0), 2);
-  NEW.montant_ttc := ROUND(NEW.montant_ht + NEW.montant_tva, 2);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ─── 4.4 Calcule le montant total d'une réservation ───
---      ⚠️ nombre_nuits est GENERATED STORED → on ne la touche pas
-
-CREATE OR REPLACE FUNCTION public.calculer_reservation()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.montant_total := ROUND(
-    (NEW.date_depart - NEW.date_arrivee) * COALESCE(NEW.prix_nuit, 0),
-    2
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ─── 4.5 Génère un code d'accès aléatoire de 8 caractères ───
-
-CREATE OR REPLACE FUNCTION public.generer_code_acces()
-RETURNS TEXT AS $$
-DECLARE
-  chars TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  result TEXT := '';
-  i INTEGER;
-BEGIN
-  FOR i IN 1..8 LOOP
-    result := result || SUBSTRING(chars, FLOOR(RANDOM() * LENGTH(chars)) + 1, 1);
-  END LOOP;
-  RETURN result;
-END;
-$$ LANGUAGE plpgsql;
-
--- ─── 4.6 Met à jour hotels.nombre_chambres après INSERT/DELETE chambre (PARTIE 12.3-12.4) ───
-
-CREATE OR REPLACE FUNCTION public.update_hotel_chambres_count()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_hotel_id UUID;
-BEGIN
-  v_hotel_id := COALESCE(NEW.hotel_id, OLD.hotel_id);
-  UPDATE public.hotels
-  SET nombre_chambres = (
-    SELECT COUNT(*) FROM public.chambres WHERE hotel_id = v_hotel_id
-  )
-  WHERE id = v_hotel_id;
-
-  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ─── 4.7 Création automatique du profil (PARTIE 12.2) ───
-
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role, is_active)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(
-      NEW.raw_user_meta_data->>'full_name',
-      NEW.raw_user_meta_data->>'nom_complet',
-      split_part(NEW.email, '@', 1)
-    ),
-    COALESCE(
-      NEW.raw_user_meta_data->>'role',
-      'receptionniste'
-    ),
-    TRUE
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ─── 4.8 get_hotel_stats(hotel_uuid) → JSON (PARTIE 14.1) ───
-
-CREATE OR REPLACE FUNCTION public.get_hotel_stats(p_hotel_id UUID)
-RETURNS JSON AS $$
-DECLARE
-  v_stats JSON;
-BEGIN
-  SELECT json_build_object(
-    'total_chambres',        COUNT(*),
-    'chambres_disponibles',  COUNT(*) FILTER (WHERE statut = 'disponible'),
-    'chambres_occupees',     COUNT(*) FILTER (WHERE statut = 'occupee'),
-    'reservations_actives',  (
-      SELECT COUNT(*) FROM public.reservations
-      WHERE hotel_id = p_hotel_id
-        AND statut IN ('en_attente', 'confirmee', 'checkin')
-    ),
-    'revenus_mois_actuel',   COALESCE((
-      SELECT SUM(montant_total) FROM public.reservations
-      WHERE hotel_id = p_hotel_id
-        AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(YEAR FROM created_at)  = EXTRACT(YEAR FROM CURRENT_DATE)
-    ), 0)
-  ) INTO v_stats
-  FROM public.chambres
-  WHERE hotel_id = p_hotel_id;
-
-  RETURN v_stats;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ─── 4.9 get_super_admin_stats() → TABLE (PARTIE 14.2) ───
-
-CREATE OR REPLACE FUNCTION public.get_super_admin_stats()
-RETURNS TABLE (
-  total_hotels        BIGINT,
-  hotels_actifs       BIGINT,
-  total_utilisateurs  BIGINT,
-  demandes_en_attente BIGINT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT
-    (SELECT COUNT(*) FROM public.hotels),
-    (SELECT COUNT(*) FROM public.hotels WHERE est_actif = TRUE),
-    (SELECT COUNT(*) FROM public.profiles),
-    (SELECT COUNT(*) FROM public.abonnement_demandes WHERE statut = 'en_attente');
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ─── 4.10 is_super_admin() → BOOLEAN (PARTIE 14.3) ───
-
-CREATE OR REPLACE FUNCTION public.is_super_admin()
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role = 'super_admin'
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
-
--- ─── 4.11 get_user_hotel_id() → UUID (PARTIE 14.4) ───
-
-CREATE OR REPLACE FUNCTION public.get_user_hotel_id()
-RETURNS UUID AS $$
-DECLARE
-  v_hotel_id UUID;
-BEGIN
-  SELECT hotel_id INTO v_hotel_id
-  FROM public.profiles
-  WHERE id = auth.uid();
-
-  RETURN v_hotel_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
-
-
--- ============================================================
--- 5. TRIGGERS (PARTIE 12)
---    Pattern idempotent : DROP IF EXISTS + CREATE
--- ============================================================
-
--- ─── 5.1 Auto-update updated_at sur toutes les tables (PARTIE 12.1) ───
-
-DROP TRIGGER IF EXISTS profiles_updated_at ON public.profiles;
 CREATE TRIGGER profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS hotels_updated_at ON public.hotels;
 CREATE TRIGGER hotels_updated_at
   BEFORE UPDATE ON public.hotels
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS personnel_hotel_updated_at ON public.personnel_hotel;
 CREATE TRIGGER personnel_hotel_updated_at
   BEFORE UPDATE ON public.personnel_hotel
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS chambres_updated_at ON public.chambres;
 CREATE TRIGGER chambres_updated_at
   BEFORE UPDATE ON public.chambres
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS clients_updated_at ON public.clients;
 CREATE TRIGGER clients_updated_at
   BEFORE UPDATE ON public.clients
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS reservations_updated_at ON public.reservations;
 CREATE TRIGGER reservations_updated_at
   BEFORE UPDATE ON public.reservations
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-DROP TRIGGER IF EXISTS abonnement_demandes_updated_at ON public.abonnement_demandes;
 CREATE TRIGGER abonnement_demandes_updated_at
   BEFORE UPDATE ON public.abonnement_demandes
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- ─── 5.2 Création auto du profil à l'inscription (PARTIE 12.2) ───
+-- ─── 5.2 Création auto du profil à l'inscription ───
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- ─── 5.3 Mise à jour nombre_chambres après INSERT chambre (PARTIE 12.3) ───
+-- ─── 5.3 Mise à jour nombre_chambres après INSERT chambre ───
 
-DROP TRIGGER IF EXISTS chambres_apres_insert ON public.chambres;
 CREATE TRIGGER chambres_apres_insert
   AFTER INSERT ON public.chambres
   FOR EACH ROW EXECUTE FUNCTION public.update_hotel_chambres_count();
 
--- ─── 5.4 Mise à jour nombre_chambres après DELETE chambre (PARTIE 12.4) ───
+-- ─── 5.4 Mise à jour nombre_chambres après DELETE chambre ───
 
-DROP TRIGGER IF EXISTS chambres_apres_delete ON public.chambres;
 CREATE TRIGGER chambres_apres_delete
   AFTER DELETE ON public.chambres
   FOR EACH ROW EXECUTE FUNCTION public.update_hotel_chambres_count();
 
 -- ─── 5.5 Auto-calcul montants TTC sur factures ───
 
-DROP TRIGGER IF EXISTS factures_calcul_montants ON public.factures;
 CREATE TRIGGER factures_calcul_montants
   BEFORE INSERT OR UPDATE OF montant_ht, taux_tva ON public.factures
   FOR EACH ROW EXECUTE FUNCTION public.calculer_montants_facture();
 
 -- ─── 5.6 Auto-calcul montant total sur réservations ───
---      ⚠️ Ne modifie PAS nombre_nuits (colonne GENERATED)
 
-DROP TRIGGER IF EXISTS reservations_calcul ON public.reservations;
 CREATE TRIGGER reservations_calcul
   BEFORE INSERT OR UPDATE OF date_arrivee, date_depart, prix_nuit ON public.reservations
   FOR EACH ROW EXECUTE FUNCTION public.calculer_reservation();
 
 
 -- ============================================================
--- 6. VUES (Dashboard et rapports)
+-- PHASE 6 : VUES (Dashboard et rapports)
 -- ============================================================
 
 -- Vue : Statistiques par hôtel
@@ -1104,12 +786,10 @@ COMMENT ON VIEW public.v_top_chambres IS 'Classement des chambres les plus rése
 
 
 -- ============================================================
--- 7. ROW LEVEL SECURITY — PARTIE 13
---    Active RLS sur TOUTES les tables
---    Pattern idempotent : DROP POLICY IF EXISTS + CREATE POLICY
+-- PHASE 7 : ROW LEVEL SECURITY (RLS)
 -- ============================================================
 
--- ─── 7.0 Activation du RLS ─────────────────────────────────
+-- ─── 7.0 Activation du RLS sur toutes les tables ───
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hotels ENABLE ROW LEVEL SECURITY;
@@ -1124,48 +804,42 @@ ALTER TABLE public.activites_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 
--- ─── 7.1 Politiques — table profiles ────────────────────────
+-- ─── 7.1 Politiques — table profiles ───
 
 -- Tout utilisateur connecté peut voir son propre profil
-DROP POLICY IF EXISTS "profiles_voir_profil_perso" ON public.profiles;
 CREATE POLICY "profiles_voir_profil_perso"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (id = auth.uid());
 
 -- Le super_admin peut voir et modifier tous les profils
-DROP POLICY IF EXISTS "profiles_super_admin_total" ON public.profiles;
 CREATE POLICY "profiles_super_admin_total"
   ON public.profiles FOR ALL
   TO authenticated
   USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'super_admin');
 
 -- Un admin_hotel peut voir les profils de son hôtel
-DROP POLICY IF EXISTS "profiles_admin_hotel_voir_equipe" ON public.profiles;
 CREATE POLICY "profiles_admin_hotel_voir_equipe"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (hotel_id = (SELECT hotel_id FROM public.profiles WHERE id = auth.uid()));
 
 
--- ─── 7.2 Politiques — table hotels ─────────────────────────
+-- ─── 7.2 Politiques — table hotels ───
 
 -- Tout le monde peut voir les hôtels actifs (landing page)
-DROP POLICY IF EXISTS "hotels_public_read_actifs" ON public.hotels;
 CREATE POLICY "hotels_public_read_actifs"
   ON public.hotels FOR SELECT
   TO anon, authenticated
   USING (est_actif = TRUE);
 
 -- L'admin d'un hôtel peut voir et modifier uniquement son hôtel
-DROP POLICY IF EXISTS "hotels_admin_own" ON public.hotels;
 CREATE POLICY "hotels_admin_own"
   ON public.hotels FOR ALL
   TO authenticated
   USING (admin_id = auth.uid());
 
 -- Le super_admin peut tout faire sur les hôtels
-DROP POLICY IF EXISTS "hotels_super_admin_total" ON public.hotels;
 CREATE POLICY "hotels_super_admin_total"
   ON public.hotels FOR ALL
   TO authenticated
@@ -1173,11 +847,8 @@ CREATE POLICY "hotels_super_admin_total"
 
 
 -- ─── 7.3 Politiques — tables chambres, clients, reservations, factures ───
---    Règle : accès basé sur hotel_id du profil de l'utilisateur
---    Le super_admin peut tout voir
 
 -- Chambres
-DROP POLICY IF EXISTS "chambres_hotel_access" ON public.chambres;
 CREATE POLICY "chambres_hotel_access"
   ON public.chambres FOR ALL
   TO authenticated
@@ -1187,7 +858,6 @@ CREATE POLICY "chambres_hotel_access"
   );
 
 -- Clients
-DROP POLICY IF EXISTS "clients_hotel_access" ON public.clients;
 CREATE POLICY "clients_hotel_access"
   ON public.clients FOR ALL
   TO authenticated
@@ -1197,7 +867,6 @@ CREATE POLICY "clients_hotel_access"
   );
 
 -- Réservations
-DROP POLICY IF EXISTS "reservations_hotel_access" ON public.reservations;
 CREATE POLICY "reservations_hotel_access"
   ON public.reservations FOR ALL
   TO authenticated
@@ -1207,7 +876,6 @@ CREATE POLICY "reservations_hotel_access"
   );
 
 -- Factures
-DROP POLICY IF EXISTS "factures_hotel_access" ON public.factures;
 CREATE POLICY "factures_hotel_access"
   ON public.factures FOR ALL
   TO authenticated
@@ -1217,9 +885,8 @@ CREATE POLICY "factures_hotel_access"
   );
 
 
--- ─── 7.4 Politiques — table personnel_hotel ────────────────
+-- ─── 7.4 Politiques — table personnel_hotel ───
 
-DROP POLICY IF EXISTS "personnel_hotel_access" ON public.personnel_hotel;
 CREATE POLICY "personnel_hotel_access"
   ON public.personnel_hotel FOR ALL
   TO authenticated
@@ -1229,45 +896,38 @@ CREATE POLICY "personnel_hotel_access"
   );
 
 
--- ─── 7.5 Politiques — table abonnement_demandes ────────────
---    Insertion publique (formulaire landing page)
---    Lecture/modification uniquement pour le super_admin
+-- ─── 7.5 Politiques — table abonnement_demandes ───
 
--- Insertion publique (anon + authenticated)
-DROP POLICY IF EXISTS "demandes_public_insert" ON public.abonnement_demandes;
+-- Insertion publique (formulaire landing page)
 CREATE POLICY "demandes_public_insert"
   ON public.abonnement_demandes FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
 
 -- Lecture/modification uniquement super_admin
-DROP POLICY IF EXISTS "demandes_super_admin_all" ON public.abonnement_demandes;
 CREATE POLICY "demandes_super_admin_all"
   ON public.abonnement_demandes FOR ALL
   TO authenticated
   USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'super_admin');
 
 
--- ─── 7.6 Politiques — table codes_acces ────────────────────
---    Tout utilisateur peut lire un code pour vérifier sa validité
---    super_admin peut tout faire
+-- ─── 7.6 Politiques — table codes_acces ───
 
-DROP POLICY IF EXISTS "codes_public_read" ON public.codes_acces;
+-- Tout utilisateur peut lire un code pour vérifier sa validité
 CREATE POLICY "codes_public_read"
   ON public.codes_acces FOR SELECT
   TO anon, authenticated
   USING (true);
 
-DROP POLICY IF EXISTS "codes_super_admin_all" ON public.codes_acces;
+-- super_admin peut tout faire
 CREATE POLICY "codes_super_admin_all"
   ON public.codes_acces FOR ALL
   TO authenticated
   USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'super_admin');
 
 
--- ─── 7.7 Politiques — table activites_log ──────────────────
+-- ─── 7.7 Politiques — table activites_log ───
 
-DROP POLICY IF EXISTS "activites_hotel_access" ON public.activites_log;
 CREATE POLICY "activites_hotel_access"
   ON public.activites_log FOR ALL
   TO authenticated
@@ -1278,9 +938,8 @@ CREATE POLICY "activites_hotel_access"
   );
 
 
--- ─── 7.8 Politiques — table notifications ──────────────────
+-- ─── 7.8 Politiques — table notifications ───
 
-DROP POLICY IF EXISTS "notifications_user_access" ON public.notifications;
 CREATE POLICY "notifications_user_access"
   ON public.notifications FOR ALL
   TO authenticated
@@ -1292,14 +951,13 @@ CREATE POLICY "notifications_user_access"
 
 
 -- ============================================================
--- 8. DONNÉES INITIALES (PARTIE 15)
---    Insert idempotent — ne s'exécute que si les données n'existent pas
+-- PHASE 8 : DONNÉES INITIALES
 -- ============================================================
 
--- Donnée de test pour vérifier que la table abonnement_demandes fonctionne
+-- Donnée de test pour vérifier le bon fonctionnement
 INSERT INTO public.abonnement_demandes
   (nom_complet, email, telephone, nom_hotel, ville, quartier, nombre_chambres, plan_choisi, message)
-SELECT
+VALUES (
   'Kouamé Aminata',
   'aminata.kouame@email.com',
   '+2250708090909',
@@ -1309,17 +967,14 @@ SELECT
   15,
   'standard',
   'Je souhaite souscrire au plan Standard pour mon hôtel de 15 chambres. Merci de me recontacter.'
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.abonnement_demandes
-  WHERE email = 'aminata.kouame@email.com'
 );
 
 
 -- ============================================================
--- 9. RÉSUMÉ FINAL
+-- RÉSUMÉ FINAL
 -- ============================================================
 --
--- TABLES (12) :
+-- TABLES (11) :
 --   abonnement_demandes → codes_acces → hotels → profiles →
 --   personnel_hotel, chambres, clients, reservations, factures,
 --   activites_log, notifications
@@ -1340,11 +995,11 @@ WHERE NOT EXISTS (
 -- TRIGGERS (12) :
 --   updated_at : profiles, hotels, personnel, chambres, clients,
 --                reservations, abonnement_demandes (×7)
---   chambres_apres_insert  — compteur +1 (PARTIE 12.3)
---   chambres_apres_delete  — compteur -1 (PARTIE 12.4)
+--   chambres_apres_insert  — compteur +1
+--   chambres_apres_delete  — compteur -1
 --   factures_calcul_montants — TVA auto
 --   reservations_calcul      — montant total auto
---   on_auth_user_created     — profil auto (PARTIE 12.2)
+--   on_auth_user_created     — profil auto
 --
 -- RLS (20 politiques) :
 --   profiles    : profil perso, super_admin total, admin_hotel équipe
@@ -1358,11 +1013,6 @@ WHERE NOT EXISTS (
 --
 -- VUES (3) : v_stats_hotel, v_taux_occupation, v_top_chambres
 -- INDEX (38) : optimisés pour les requêtes fréquentes
---
--- DONNÉES INITIALES : 1 demande de test (abonnement_demandes)
---
--- IDEMPOTENT : ✅ CREATE IF NOT EXISTS, CREATE OR REPLACE,
---   DROP TRIGGER/POLICY IF EXISTS + CREATE, INSERT WHERE NOT EXISTS
 --
 -- TVA PAR DÉFAUT : 18% (Côte d'Ivoire)
 -- DEVISE : FCFA — DECIMAL(10,2)

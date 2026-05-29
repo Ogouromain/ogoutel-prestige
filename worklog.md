@@ -109,3 +109,24 @@ Stage Summary:
 - 12 tables, 11 functions, 12 triggers, 20 RLS policies, 38 indexes, 3 views
 - Fully idempotent — safe to run multiple times in Supabase SQL Editor
 - Compatible PostgreSQL 15, zero ENUMs, all TEXT+CHECK
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Rewrite schema.sql as complete DROP+CREATE replacement script (old tables still in Supabase)
+
+Work Log:
+- User reported: old tables still exist in Supabase after deleting the script file
+- Rewrote schema.sql (~1020 lines) as a complete DROP+CREATE replacement script
+- PHASE 0: Drops ALL views (3), triggers (1 on auth.users), functions (11), tables (11 CASCADE), and old ENUM types (9)
+- Removed all migration DO blocks (not needed since tables are recreated from scratch)
+- Correct creation order: Extensions → Functions → Tables (FK order) → Indexes → Triggers → Views → RLS → Seed
+- Functions created BEFORE triggers (no missing function reference errors)
+- is_super_admin() and get_user_hotel_id() created BEFORE RLS policies that reference them
+- No commented-out code — the DROP statements are active and will clean everything
+- All tables created with correct TEXT+CHECK constraints, zero ENUMs
+
+Stage Summary:
+- Clean replacement script ready for Supabase SQL Editor
+- Will completely remove old tables (including any with ENUMs) and recreate fresh
+- 11 tables, 11 functions, 12 triggers, 20 RLS policies, 38 indexes, 3 views, 1 seed row
