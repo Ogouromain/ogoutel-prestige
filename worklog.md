@@ -221,3 +221,26 @@ Stage Summary:
 - Email templates: professional HTML with gradient headers, responsive tables, action buttons
 - Protected route (generate-activation-code) verifies super_admin role via Supabase auth
 - Public validation route supports both POST body and GET query param
+
+---
+Task ID: 11
+Agent: Main Agent
+Task: Create complete authentication pages — login, register, auth layout, API route
+
+Work Log:
+- Created app/api/register-user/route.ts: POST endpoint for full registration flow — validates activation code server-side, creates Supabase Auth user via admin client (email_confirm: true), creates hotel record with 30-day subscription, updates profile with role='admin_hotel' and hotel_id, marks activation code as used, updates abonnement_demandes status to 'active'. Graceful cleanup on failure (deletes auth user if hotel creation fails). All column names match actual schema (plan, est_utilise, demande_id — not plan_choisi, actif).
+- Created app/(auth)/layout.tsx: Shared layout for auth pages with min-h-screen flex layout
+- Created app/(auth)/login/page.tsx: Login page with Suspense boundary for useSearchParams
+- Created app/(auth)/register/page.tsx: Register page wrapping RegisterForm
+- Created components/auth/LoginForm.tsx: Split-screen design (green gradient left with branding + features, form right). Supabase Auth signInWithPassword, profile fetch for role detection, role-based redirect (super_admin→/super-dashboard, admin_hotel/gerant→/dashboard, receptionniste→/receptionniste). French error messages for common Supabase errors. Password show/hide toggle, loading spinner, "forgot password" link, responsive mobile layout.
+- Created components/auth/RegisterForm.tsx: Multi-step form with animated transitions (Framer Motion AnimatePresence + slide variants). Step 1: Code validation (OGT-XXXX-XXXX format, API call to /api/validate-activation-code, plan info display with features badges). Step 2: Account creation (prenom, nom, email, telephone, password with strength validation, confirm password, nom_hotel pre-filled). Progress indicator with step numbers and animated connecting line. Auto-login after registration, role-based redirect to /dashboard.
+- Zod v4 validation with custom French error messages
+- All auth forms work gracefully without Supabase (shows toast error)
+- ESLint passes with zero errors, both /login and /register return HTTP 200
+
+Stage Summary:
+- 6 new files: 1 API route + 1 layout + 2 pages + 2 form components
+- Login: split-screen, Supabase Auth, role-based redirect, French errors
+- Register: 2-step flow (code validation → account creation), animated transitions
+- API: full server-side registration (auth user + hotel + profile + code marking)
+- Both pages compile and serve correctly
