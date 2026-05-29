@@ -383,6 +383,316 @@ COMMENT ON TABLE public.notifications IS 'Notifications in-app pour les utilisat
 
 
 -- ============================================================
+-- 2b. MIGRATIONS — Ajout de colonnes manquantes sur tables existantes
+--     Nécessaire si les tables ont été créées dans une version
+--     antérieure du schéma (CREATE IF NOT EXISTS les saute).
+--     Utilise un bloc DO pour chaque ALTER afin d'être idempotent.
+-- ============================================================
+
+-- ─── abonnement_demandes : ajouter notes_admin et updated_at ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'abonnement_demandes' AND column_name = 'notes_admin'
+  ) THEN
+    ALTER TABLE public.abonnement_demandes ADD COLUMN notes_admin TEXT;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'abonnement_demandes' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.abonnement_demandes ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  END IF;
+END $$;
+
+-- ─── abonnement_demandes : migrer statut ENUM → TEXT si nécessaire ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'statut_demande'
+  ) THEN
+    -- Supprimer le trigger updated_at temporairement
+    DROP TRIGGER IF EXISTS abonnement_demandes_updated_at ON public.abonnement_demandes;
+    -- Changer le type de la colonne
+    ALTER TABLE public.abonnement_demandes
+      ALTER COLUMN statut TYPE TEXT USING statut::TEXT;
+    ALTER TABLE public.abonnement_demandes
+      ALTER COLUMN plan_choisi TYPE TEXT USING plan_choisi::TEXT;
+    -- Mettre à jour les valeurs de statut (anciennes → nouvelles)
+    UPDATE public.abonnement_demandes SET statut = 'en_attente' WHERE statut IN ('approuvee', 'rejetee');
+    UPDATE public.abonnement_demandes SET statut = 'contacte'  WHERE statut = 'code_envoye';
+    -- Supprimer l'ancienne contrainte CHECK
+    ALTER TABLE public.abonnement_demandes DROP CONSTRAINT IF EXISTS abonnement_demandes_statut_check;
+    -- Ajouter la nouvelle contrainte CHECK avec les nouvelles valeurs
+    ALTER TABLE public.abonnement_demandes ADD CONSTRAINT abonnement_demandes_statut_check
+      CHECK (statut IN ('en_attente', 'contacte', 'paye', 'active'));
+    -- Supprimer l'ENUM obsolète
+    DROP TYPE IF EXISTS statut_demande CASCADE;
+    -- Re-créer le trigger
+    CREATE TRIGGER abonnement_demandes_updated_at
+      BEFORE UPDATE ON public.abonnement_demandes
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
+
+-- ─── abonnement_demandes : si statut est déjà TEXT avec ancienne contrainte CHECK ───
+DO $$ DECLARE
+  v_has_old_check BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.abonnement_demandes'::regclass
+      AND conname = 'abonnement_demandes_statut_check'
+      AND pg_get_constraintdef(oid) LIKE '%approuvee%'
+  ) INTO v_has_old_check;
+  
+  IF v_has_old_check THEN
+    UPDATE public.abonnement_demandes SET statut = 'en_attente' WHERE statut IN ('approuvee', 'rejetee');
+    UPDATE public.abonnement_demandes SET statut = 'contacte'  WHERE statut = 'code_envoye';
+    ALTER TABLE public.abonnement_demandes DROP CONSTRAINT abonnement_demandes_statut_check;
+    ALTER TABLE public.abonnement_demandes ADD CONSTRAINT abonnement_demandes_statut_check
+      CHECK (statut IN ('en_attente', 'contacte', 'paye', 'active'));
+  END IF;
+END $$;
+
+
+-- ─── hotels : ajouter colonnes manquantes ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'code_acces_id'
+  ) THEN
+    ALTER TABLE public.hotels ADD COLUMN code_acces_id UUID REFERENCES public.codes_acces(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'description'
+  ) THEN
+    ALTER TABLE public.hotels ADD COLUMN description TEXT;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'nombre_etoiles'
+  ) THEN
+    ALTER TABLE public.hotels ADD COLUMN nombre_etoiles INTEGER DEFAULT 0 CHECK (nombre_etoiles BETWEEN 0 AND 5);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'hotels' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.hotels ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  END IF;
+END $$;
+
+-- ─── hotels : migrer plan ENUM → TEXT si nécessaire ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'plan_abonnement'
+  ) THEN
+    DROP TRIGGER IF EXISTS hotels_updated_at ON public.hotels;
+    ALTER TABLE public.hotels
+      ALTER COLUMN plan TYPE TEXT USING plan::TEXT;
+    DROP TYPE IF EXISTS plan_abonnement CASCADE;
+    CREATE TRIGGER hotels_updated_at
+      BEFORE UPDATE ON public.hotels
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
+
+-- ─── hotels : migrer date_debut/date_fin DATE → TIMESTAMPTZ si nécessaire ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'hotels'
+      AND column_name = 'date_debut_abonnement' AND data_type = 'date'
+  ) THEN
+    ALTER TABLE public.hotels ALTER COLUMN date_debut_abonnement TYPE TIMESTAMPTZ USING date_debut_abonnement::TIMESTAMPTZ;
+    ALTER TABLE public.hotels ALTER COLUMN date_fin_abonnement TYPE TIMESTAMPTZ USING date_fin_abonnement::TIMESTAMPTZ;
+    ALTER TABLE public.hotels ALTER COLUMN date_debut_abonnement SET DEFAULT NOW();
+    ALTER TABLE public.hotels ALTER COLUMN date_fin_abonnement SET DEFAULT (NOW() + INTERVAL '30 days');
+  END IF;
+END $$;
+
+
+-- ─── chambres : ajouter colonnes manquantes ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'chambres' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.chambres ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  END IF;
+END $$;
+
+-- ─── chambres : migrer type ENUM → TEXT si nécessaire ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'type_chambre'
+  ) THEN
+    DROP TRIGGER IF EXISTS chambres_updated_at ON public.chambres;
+    ALTER TABLE public.chambres
+      ALTER COLUMN type TYPE TEXT USING type::TEXT;
+    DROP TYPE IF EXISTS type_chambre CASCADE;
+    CREATE TRIGGER chambres_updated_at
+      BEFORE UPDATE ON public.chambres
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
+
+-- ─── chambres : migrer statut ENUM → TEXT si nécessaire ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'statut_chambre'
+  ) THEN
+    ALTER TABLE public.chambres
+      ALTER COLUMN statut TYPE TEXT USING statut::TEXT;
+    -- Corriger 'réservée' avec accent en 'reservee' sans accent
+    UPDATE public.chambres SET statut = 'reservee' WHERE statut = 'réservée';
+    DROP TYPE IF EXISTS statut_chambre CASCADE;
+  END IF;
+END $$;
+
+
+-- ─── clients : ajouter colonnes manquantes ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'clients' AND column_name = 'notes'
+  ) THEN
+    ALTER TABLE public.clients ADD COLUMN notes TEXT;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'clients' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.clients ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  END IF;
+END $$;
+
+-- ─── clients : migrer piece_identite_type ENUM → TEXT ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'type_piece_identite'
+  ) THEN
+    ALTER TABLE public.clients
+      ALTER COLUMN piece_identite_type TYPE TEXT USING piece_identite_type::TEXT;
+    DROP TYPE IF EXISTS type_piece_identite CASCADE;
+  END IF;
+END $$;
+
+
+-- ─── reservations : ajouter updated_at si manquant ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'reservations' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.reservations ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  END IF;
+END $$;
+
+-- ─── reservations : migrer statut ENUM → TEXT ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'statut_reservation'
+  ) THEN
+    DROP TRIGGER IF EXISTS reservations_updated_at ON public.reservations;
+    ALTER TABLE public.reservations
+      ALTER COLUMN statut TYPE TEXT USING statut::TEXT;
+    DROP TYPE IF EXISTS statut_reservation CASCADE;
+    CREATE TRIGGER reservations_updated_at
+      BEFORE UPDATE ON public.reservations
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
+
+
+-- ─── factures : ajouter notes + 'carte' au mode_paiement ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'factures' AND column_name = 'notes'
+  ) THEN
+    ALTER TABLE public.factures ADD COLUMN notes TEXT;
+  END IF;
+END $$;
+
+-- ─── factures : migrer statut_paiement ENUM → TEXT ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'statut_facture'
+  ) THEN
+    ALTER TABLE public.factures
+      ALTER COLUMN statut_paiement TYPE TEXT USING statut_paiement::TEXT;
+    DROP TYPE IF EXISTS statut_facture CASCADE;
+  END IF;
+END $$;
+
+-- ─── factures : migrer mode_paiement ENUM → TEXT + ajouter 'carte' ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'mode_paiement'
+  ) THEN
+    ALTER TABLE public.factures
+      ALTER COLUMN mode_paiement TYPE TEXT USING mode_paiement::TEXT;
+    -- Supprimer l'ancienne contrainte CHECK si elle existe
+    ALTER TABLE public.factures DROP CONSTRAINT IF EXISTS factures_mode_paiement_check;
+    -- Ajouter la nouvelle contrainte avec 'carte' inclus
+    ALTER TABLE public.factures ADD CONSTRAINT factures_mode_paiement_check
+      CHECK (mode_paiement IN ('especes', 'mobile_money', 'virement', 'cheque', 'carte'));
+    DROP TYPE IF EXISTS mode_paiement CASCADE;
+  END IF;
+END $$;
+
+-- ─── factures : rendre reservation_id nullable ───
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'factures'
+      AND column_name = 'reservation_id' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE public.factures ALTER COLUMN reservation_id DROP NOT NULL;
+  END IF;
+END $$;
+
+
+-- ─── personnel_hotel : ajouter updated_at si manquant ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'personnel_hotel' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.personnel_hotel ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  END IF;
+END $$;
+
+
+-- ─── profiles : ajouter updated_at si manquant ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+  END IF;
+END $$;
+
+
+-- ============================================================
 -- 3. INDEX — Optimisation des requêtes fréquentes
 -- ============================================================
 
