@@ -306,3 +306,45 @@ Stage Summary:
 - ESLint passes with zero errors
 - Responsive design: sidebar collapses on mobile with Sheet drawer
 - Rich features: search, filter, pagination, CSV export, WhatsApp/Email links, status transitions
+---
+Task ID: 14
+Agent: Main Agent + 3 Subagents
+Task: Create complete Hotel Admin Dashboard for OGOUTEL_Prestige (20 files)
+
+Work Log:
+- Created 6 API routes for hotel admin data (src/app/api/admin/):
+  * stats/route.ts — GET: hotel info, chambre counts, today checkins/checkouts, finances (daily/monthly/yearly + 7-day chart), taux occupation
+  * rooms/route.ts — GET (paginated + filters) + POST (create with plan limit validation) + PUT (update fields/status) + DELETE
+  * reservations/route.ts — GET (paginated with client+chambre+factures relations) + POST (create with auto-calc montant) + PUT (status transitions with chambre side effects)
+  * staff/route.ts — GET (with plan limites) + POST (add with limit enforcement) + PUT (update) + DELETE (soft deactivate)
+  * finances/route.ts — GET (revenus/depenses/benefice/taux occupation/payment breakdown by room type/status) + POST (record expense)
+  * settings/route.ts — GET (hotel info + plan details + subscription countdown) + PUT (update hotel info or change password)
+- Created 6 admin components (src/components/admin/):
+  * AdminSidebar.tsx — Same pattern as SuperAdminSidebar, Hotel icon, fetches hotel info, plan badge, 7 nav items, collapse/Sheet
+  * DashboardStats.tsx — 6 stat cards, mini chambre color grid (green/red/orange/blue), arrivals/departs lists, 7-day BarChart
+  * RoomsGrid.tsx — Card grid with filter bar, add/edit/detail dialogs, equipment checkboxes, plan limit tracking, pagination
+  * ReservationsList.tsx — Full table + mobile cards, 3-tab new reservation dialog (Client→Chambre→Paiement), check-in/out/cancel actions
+  * StaffManager.tsx — Grid/list view, add/edit dialogs, plan limits with Progress bars, activate/deactivate
+  * FinancesDashboard.tsx — 4 stat cards, 3 tabs (Revenus/Dépenses/Rapport), expense dialog, bar+pie charts, period selector
+- Created 8 pages (src/app/(dashboard)/admin/):
+  * layout.tsx — Server component with AdminSidebar + main content area
+  * page.tsx — Tableau de bord: fetches stats, renders DashboardStats
+  * rooms/page.tsx — Mes Chambres: mini stat cards + RoomsGrid
+  * reservations/page.tsx — Réservations: mini stat cards + ReservationsList
+  * staff/page.tsx — Mon Personnel: StaffManager with limites
+  * finances/page.tsx — Finances: FinancesDashboard with period selector
+  * reports/page.tsx — Rapports: 4 stat cards, 3 tabs (Vue d'ensemble/Par chambre/Clients), 5 recharts charts, CSV export, period selector
+  * settings/page.tsx — Mon Hôtel: hotel info card, 3 tabs (Informations/Abonnement/Sécurité), edit forms
+- All API routes return rich demo data when Supabase unconfigured
+- All pages use standard fetch pattern with useCallback+useEffect
+- All text in French, brand color scheme (gold/green/orange/black)
+- ESLint passes with zero errors
+- All 14 endpoints (7 pages + 6 APIs + reports) return HTTP 200
+
+Stage Summary:
+- 20 new files: 6 API routes + 6 components + 8 pages/layout
+- Complete Hotel Admin Dashboard: Overview, Rooms, Reservations, Staff, Finances, Reports, Settings
+- Rich demo data: 12 rooms, 15 reservations, 4 staff, 8 factures, 7-day revenue data
+- Responsive design with mobile Sheet sidebar
+- Full CRUD operations with proper status transitions and side effects
+- Plan limits enforced (chambres, receptionnistes, gerants)
