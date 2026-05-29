@@ -244,3 +244,29 @@ Stage Summary:
 - Register: 2-step flow (code validation → account creation), animated transitions
 - API: full server-side registration (auth user + hotel + profile + code marking)
 - Both pages compile and serve correctly
+
+---
+Task ID: 12
+Agent: Main Agent
+Task: Update auth pages to match exact user spec — titles, redirect paths, middleware
+
+Work Log:
+- Updated LoginForm.tsx: Title "Bienvenue" → "Bienvenue sur OGOUTEL_Prestige" (exact spec)
+- Updated LoginForm.tsx: Redirect paths per user spec:
+  * super_admin → /super-admin (was /super-dashboard)
+  * admin_hotel → /admin (was /dashboard)
+  * gerant → /staff (was /dashboard)
+  * receptionniste → /staff (was /receptionniste)
+- Updated RegisterForm.tsx: Redirect from /dashboard → /admin (exact spec)
+- Updated middleware.ts: ROUTES_API_PUBLIQUES added /api/register-user and /api/generate-activation-code
+- Updated middleware.ts: DASHBOARD_PAR_ROLE aligned with new paths (/super-admin, /admin, /staff)
+- Updated middleware.ts: PERMISSIONS_ROUTES aligned with new paths (/super-admin/*, /admin/*, /staff/*)
+- Updated middleware.ts: getRouteProtégée() fallback prefixes aligned (/super-admin, /admin, /staff)
+- ESLint: zero errors
+- Dev server: /login → 200, /register → 200
+
+Stage Summary:
+- All redirect paths now match user spec exactly
+- Title matches exact spec "Bienvenue sur OGOUTEL_Prestige"
+- Middleware, LoginForm, and RegisterForm all use consistent redirect paths
+- /api/register-user added to public API routes

@@ -137,10 +137,10 @@ export function LoginForm() {
 
       // 4. Rediriger selon le rôle
       const roleRedirects: Record<string, string> = {
-        super_admin: '/super-dashboard',
-        admin_hotel: '/dashboard',
-        gerant: '/dashboard',
-        receptionniste: '/receptionniste',
+        super_admin: '/super-admin',
+        admin_hotel: '/admin',
+        gerant: '/staff',
+        receptionniste: '/staff',
       };
 
       const redirectPath = roleRedirects[profile.role] ?? '/';
@@ -255,7 +255,7 @@ export function LoginForm() {
           <Card className="border-0 shadow-xl shadow-black/5">
             <CardHeader className="text-center pb-2">
               <CardTitle className="text-2xl font-heading font-bold text-[#0A0A0A]">
-                Bienvenue
+                Bienvenue sur OGOUTEL_Prestige
               </CardTitle>
               <CardDescription className="text-muted-foreground mt-1">
                 Connectez-vous à votre tableau de bord

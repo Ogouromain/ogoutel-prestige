@@ -8,9 +8,9 @@
 //                       /api/send-contact
 //
 // Routes protégées    :
-//   /super-dashboard  → super_admin
-//   /dashboard        → admin_hotel, gerant
-//   /receptionniste   → receptionniste, gerant, admin_hotel
+//   /super-admin      → super_admin
+//   /admin            → admin_hotel, gerant
+//   /staff            → receptionniste, gerant, admin_hotel
 //
 // Logique :
 //   Non connecté  + route protégée  → /login?redirect=...
@@ -41,6 +41,8 @@ const ROUTES_API_PUBLIQUES = [
   "/api/send-contact",
   "/api/send-subscription-email",
   "/api/validate-activation-code",
+  "/api/register-user",
+  "/api/generate-activation-code",
   "/api/webhooks",
   "/api/auth",
   "/api/pricing",
@@ -53,33 +55,33 @@ const ROUTES_API_PUBLIQUES = [
 
 /** Association rôle → route dashboard */
 const DASHBOARD_PAR_ROLE: Record<RoleUtilisateur, string> = {
-  super_admin: "/super-dashboard",
-  admin_hotel: "/dashboard",
-  gerant: "/dashboard",
-  receptionniste: "/receptionniste",
+  super_admin: "/super-admin",
+  admin_hotel: "/admin",
+  gerant: "/staff",
+  receptionniste: "/staff",
 };
 
 /** Permissions d'accès par route */
 const PERMISSIONS_ROUTES: Record<string, RoleUtilisateur[]> = {
-  "/super-dashboard": ["super_admin"],
-  "/dashboard": ["admin_hotel", "gerant"],
-  "/receptionniste": ["receptionniste", "gerant", "admin_hotel"],
-  "/super-dashboard/hotels": ["super_admin"],
-  "/super-dashboard/abonnements": ["super_admin"],
-  "/super-dashboard/utilisateurs": ["super_admin"],
-  "/super-dashboard/demandes": ["super_admin"],
-  "/super-dashboard/settings": ["super_admin"],
-  "/dashboard/chambres": ["admin_hotel", "gerant"],
-  "/dashboard/reservations": ["admin_hotel", "gerant"],
-  "/dashboard/clients": ["admin_hotel", "gerant"],
-  "/dashboard/factures": ["admin_hotel", "gerant"],
-  "/dashboard/personnel": ["admin_hotel"],
-  "/dashboard/statistiques": ["admin_hotel", "gerant"],
-  "/dashboard/settings": ["admin_hotel"],
-  "/receptionniste/reservations": ["receptionniste", "gerant", "admin_hotel"],
-  "/receptionniste/checkin": ["receptionniste", "gerant", "admin_hotel"],
-  "/receptionniste/checkout": ["receptionniste", "gerant", "admin_hotel"],
-  "/receptionniste/chambres": ["receptionniste", "gerant", "admin_hotel"],
+  "/super-admin": ["super_admin"],
+  "/admin": ["admin_hotel", "gerant"],
+  "/staff": ["receptionniste", "gerant", "admin_hotel"],
+  "/super-admin/hotels": ["super_admin"],
+  "/super-admin/abonnements": ["super_admin"],
+  "/super-admin/utilisateurs": ["super_admin"],
+  "/super-admin/demandes": ["super_admin"],
+  "/super-admin/settings": ["super_admin"],
+  "/admin/chambres": ["admin_hotel", "gerant"],
+  "/admin/reservations": ["admin_hotel", "gerant"],
+  "/admin/clients": ["admin_hotel", "gerant"],
+  "/admin/factures": ["admin_hotel", "gerant"],
+  "/admin/personnel": ["admin_hotel"],
+  "/admin/statistiques": ["admin_hotel", "gerant"],
+  "/admin/settings": ["admin_hotel"],
+  "/staff/reservations": ["receptionniste", "gerant", "admin_hotel"],
+  "/staff/checkin": ["receptionniste", "gerant", "admin_hotel"],
+  "/staff/checkout": ["receptionniste", "gerant", "admin_hotel"],
+  "/staff/chambres": ["receptionniste", "gerant", "admin_hotel"],
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -110,9 +112,9 @@ function getRouteProtégée(pathname: string): string | null {
       return prefix;
     }
   }
-  if (pathname.startsWith("/super-dashboard")) return "/super-dashboard";
-  if (pathname.startsWith("/dashboard")) return "/dashboard";
-  if (pathname.startsWith("/receptionniste")) return "/receptionniste";
+  if (pathname.startsWith("/super-admin")) return "/super-admin";
+  if (pathname.startsWith("/admin")) return "/admin";
+  if (pathname.startsWith("/staff")) return "/staff";
   return null;
 }
 

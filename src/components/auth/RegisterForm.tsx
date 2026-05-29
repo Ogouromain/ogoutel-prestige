@@ -266,8 +266,8 @@ export function RegisterForm() {
         }
       }
 
-      // Rediriger vers le dashboard
-      router.push('/dashboard');
+      // Rediriger vers le dashboard admin
+      router.push('/admin');
       router.refresh();
     } catch (error) {
       console.error('[RegisterForm] Erreur inscription:', error);
