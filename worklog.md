@@ -113,3 +113,25 @@ Stage Summary:
 - Notifications system with Supabase realtime + toast helpers
 - 4 app pages (suspended, not-found, error, loading) following OGOUTEL design system
 - All components use shadcn/ui primitives, Tailwind, framer-motion, French language
+
+---
+Task ID: 4
+Agent: Main Developer
+Task: Create all final configuration files for OGOUTEL_Prestige
+
+Work Log:
+- Created `.env.local` — Template with placeholder values, 18 variables across 6 sections (Application, Supabase, Resend, DB, WhatsApp, Security), French comments
+- Created `.env.example` — Public template safe for GitHub with empty values and setup instructions
+- Rewrote `next.config.ts` — Added images remote patterns (Supabase Storage, Unsplash), security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, X-XSS-Protection), redirect /dashboard → /admin, removed output: "standalone" (was crashing dev server)
+- Created `src/lib/resend.ts` — Centralized Resend email module: APP_EMAIL, ADMIN_EMAIL constants, getResendClient() with caching + dynamic import + graceful degradation, envoyerEmailAdmin(), envoyerEmailClient(), EmailOptions/EmailResult interfaces
+- Updated `src/lib/utils.ts` — Added 20+ new functions: ADMIN_EMAIL, WHATSAPP_NUMBER, WHATSAPP_LINK, genererLienWhatsApp, masquerPartie, slugify, genererIdCourt, estUUID, formaterDuree, tempsEcoule, estDansLePasse, estProche, grouperPar, trierPar, dedupliquerPar, aleatoire, exporterCSV, telechargerFichier
+- Created `src/lib/validations.ts` — 10 Zod v4 schemas (import from 'zod/v4'): login, register (with OGT-XXXX-XXXX code), contactSubscription, chambre, reservation (date validation), client, facture, personnel, activationCode, pagination. 4 constant lists, 5 reusable rules, 20 inferred types
+- Updated `src/lib/constants.ts` — Added: APP_NAME, APP_URL, ADMIN_EMAIL, WHATSAPP constants, CODE_ACTIVATION_EXPIRATION_DAYS, ABONNEMENT_SUSPENSION_DELAY, CODE_ACTIVATION_FORMAT, CODE_ACTIVATION_CHARS, PAGE_PAR_DEFAUT, LIMITE_PAR_DEFAUT, LIMITE_MAX, TYPES_NOTIFICATIONS (8 types with icons/colors), EQUIPEMENTS_CHAMBRE (12 items), JOURS_SEMAINE, COULEURS_THEME (12 colors)
+- Created `README.md` — Full documentation in French: badges, features, pricing table, installation guide, environment variables table, project structure tree, security section (4 roles), technology stack table, contact info
+
+Stage Summary:
+- 8 files created/updated (4 new, 4 updated)
+- ESLint passes with 0 errors, 1 warning (TanStack Table pre-existing)
+- Dev server running and stable on port 3000 (HTTP 200)
+- Total: 1,682 lines of code across 8 files
+- .env.local is already covered by .gitignore (.env* pattern)

@@ -227,6 +227,196 @@ export function getLibelleParId(
   return tableau.find((item) => item.id === id)?.label ?? id;
 }
 
+// ─── Emails & Contact ──────────────────────────────────────────────────
+
+/** Email de l'administrateur */
+export const ADMIN_EMAIL = "omouitsi@gmail.com";
+
+/** Numéro WhatsApp format international */
+export const WHATSAPP_NUMBER = "2250576103277";
+
+/** Lien WhatsApp direct */
+export const WHATSAPP_LINK = "https://wa.me/2250576103277";
+
+/** Génère un lien WhatsApp avec un message pré-rempli */
+export function genererLienWhatsApp(message: string): string {
+  const encoded = encodeURIComponent(message);
+  return `${WHATSAPP_LINK}?text=${encoded}`;
+}
+
+// ─── Sécurité & Tokens ──────────────────────────────────────────────────
+
+/** Masque une partie d'une chaîne : "OGT-AB12-CD34" → "OGT-****-****" */
+export function masquerPartie(value: string, visibleChars: number = 4): string {
+  if (!value || value.length <= visibleChars) return value;
+  const debut = value.substring(0, visibleChars);
+  const fin = value.substring(value.length - visibleChars);
+  const milieu = "*".repeat(Math.max(4, value.length - visibleChars * 2));
+  return `${debut}${milieu}${fin}`;
+}
+
+/** Génère un slug à partir d'un texte : "Hotel Le Palmier" → "hotel-le-palmier" */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Génère un identifiant court (6 caractères alphanumériques) */
+export function genererIdCourt(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let result = "";
+  for (let i = 0; i < 6; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+}
+
+/** Vérifie si un objet est un UUID valide */
+export function estUUID(value: string): boolean {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return regex.test(value);
+}
+
+// ─── Durée & Temps ────────────────────────────────────────────────────
+
+/** Formate une durée en jours/heures : "3j 5h" */
+export function formaterDuree(jours: number): string {
+  if (jours <= 0) return "0j";
+  if (jours < 1) {
+    const heures = Math.round(jours * 24);
+    return `${heures}h`;
+  }
+  return `${jours}j`;
+}
+
+/** Calcule le temps écoulé depuis une date : "il y a 5 min" */
+export function tempsEcoule(date: string): string {
+  try {
+    const now = Date.now();
+    const then = new Date(date).getTime();
+    const diffMs = now - then;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHeure = Math.floor(diffMin / 60);
+    const diffJour = Math.floor(diffHeure / 24);
+
+    if (diffSec < 60) return "à l'instant";
+    if (diffMin < 60) return `il y a ${diffMin} min`;
+    if (diffHeure < 24) return `il y a ${diffHeure}h`;
+    if (diffJour < 7) return `il y a ${diffJour}j`;
+    if (diffJour < 30) return `il y a ${Math.floor(diffJour / 7)} sem`;
+    return formatDateCourt(date);
+  } catch {
+    return date;
+  }
+}
+
+/** Vérifie si une date est dans le passé */
+export function estDansLePasse(date: string): boolean {
+  try {
+    return new Date(date).getTime() < Date.now();
+  } catch {
+    return false;
+  }
+}
+
+/** Vérifie si une date est dans les N prochains jours */
+export function estProche(date: string, joursMax: number = 7): boolean {
+  try {
+    const target = new Date(date).getTime();
+    const now = Date.now();
+    const diff = target - now;
+    return diff > 0 && diff <= joursMax * 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+// ─── Tableaux & Données ──────────────────────────────────────────────────
+
+/** Groupe un tableau par une clé */
+export function grouperPar<T>(
+  tableau: T[],
+  cle: keyof T
+): Record<string, T[]> {
+  return tableau.reduce((acc, item) => {
+    const valeur = String(item[cle]);
+    if (!acc[valeur]) acc[valeur] = [];
+    acc[valeur].push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
+}
+
+/** Trie un tableau d'objets par une clé */
+export function trierPar<T>(
+  tableau: T[],
+  cle: keyof T,
+  ordre: "asc" | "desc" = "asc"
+): T[] {
+  return [...tableau].sort((a, b) => {
+    const valA = a[cle];
+    const valB = b[cle];
+    if (valA < valB) return ordre === "asc" ? -1 : 1;
+    if (valA > valB) return ordre === "asc" ? 1 : -1;
+    return 0;
+  });
+}
+
+/** Supprime les doublons d'un tableau par une clé */
+export function dedupliquerPar<T>(tableau: T[], cle: keyof T): T[] {
+  const vu = new Set<string>();
+  return tableau.filter((item) => {
+    const valeur = String(item[cle]);
+    if (vu.has(valeur)) return false;
+    vu.add(valeur);
+    return true;
+  });
+}
+
+/** Retourne un élément aléatoire d'un tableau */
+export function aleatoire<T>(tableau: T[]): T | undefined {
+  if (!tableau.length) return undefined;
+  return tableau[Math.floor(Math.random() * tableau.length)];
+}
+
+/** Exporte un tableau au format CSV */
+export function exporterCSV(
+  donnees: Record<string, unknown>[],
+  nomsColonnes?: string[]
+): string {
+  if (!donnees.length) return "";
+  const colonnes = nomsColonnes ?? Object.keys(donnees[0]);
+  const lignes = donnees.map((row) =>
+    colonnes
+      .map((col) => {
+        const valeur = String(row[col] ?? "");
+        return valeur.includes(",") || valeur.includes('"')
+          ? `"${valeur.replace(/"/g, '""')}"`
+          : valeur;
+      })
+      .join(",")
+  );
+  return [colonnes.join(","), ...lignes].join("\n");
+}
+
+/** Déclenche un téléchargement de fichier dans le navigateur */
+export function telechargerFichier(contenu: string, nomFichier: string, type: string = "text/csv"): void {
+  if (typeof document === "undefined") return;
+  const blob = new Blob([contenu], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nomFichier;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // ─── Débogage ───────────────────────────────────────────────────────────────
 
 /** Log formaté pour le développement */

@@ -254,3 +254,130 @@ export type StatutDemande = (typeof STATUTS_DEMANDE)[number]['id'];
 export function getLibelleStatutDemande(id: StatutDemande): string {
   return STATUTS_DEMANDE.find((s) => s.id === id)?.label ?? id;
 }
+
+// ─── Application ─────────────────────────────────────────────────────────────
+
+/** Nom de l'application (public) */
+export const APP_NAME: string = process.env.NEXT_PUBLIC_APP_NAME ?? "OGOUTEL_Prestige";
+
+/** URL de l'application */
+export const APP_URL: string = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+/** Email de l'administrateur */
+export const ADMIN_EMAIL: string = process.env.ADMIN_EMAIL ?? "omouitsi@gmail.com";
+
+/** Numéro WhatsApp (format international, sans +) */
+export const WHATSAPP_NUMBER: string = process.env.WHATSAPP_NUMBER ?? "2250576103277";
+
+/** Lien WhatsApp direct */
+export const WHATSAPP_LINK: string = process.env.NEXT_PUBLIC_WHATSAPP_LINK ?? `https://wa.me/${WHATSAPP_NUMBER}`;
+
+// ─── Abonnement & Sécurité ───────────────────────────────────────────────
+
+/** Durée de validité du code d'activation (en jours) */
+export const CODE_ACTIVATION_EXPIRATION_DAYS: number = parseInt(
+  process.env.CODE_ACTIVATION_EXPIRATION_DAYS ?? "30",
+  10
+);
+
+/** Délai avant suspension après expiration abonnement (en jours) */
+export const ABONNEMENT_SUSPENSION_DELAY: number = parseInt(
+  process.env.ABONNEMENT_SUSPENSION_DELAY ?? "7",
+  10
+);
+
+/** Format du code d'activation OGT-XXXX-XXXX */
+export const CODE_ACTIVATION_FORMAT = /^OGT-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+
+/** Caractères utilisés pour générer les codes d'activation */
+export const CODE_ACTIVATION_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+// ─── Pagination ────────────────────────────────────────────────────────────
+
+/** Page par défaut pour la pagination */
+export const PAGE_PAR_DEFAUT = 1;
+
+/** Nombre d'éléments par page par défaut */
+export const LIMITE_PAR_DEFAUT = 20;
+
+/** Nombre maximum d'éléments par page */
+export const LIMITE_MAX = 100;
+
+// ─── Notifications ───────────────────────────────────────────────────────
+
+/** Types de notifications avec libellés et icônes */
+export const TYPES_NOTIFICATIONS = {
+  reservation_nouvelle: { label: "Nouvelle réservation", icon: "CalendarPlus", color: "text-sky-500" },
+  reservation_annulee: { label: "Réservation annulée", icon: "CalendarX", color: "text-red-500" },
+  checkin: { label: "Check-in effectué", icon: "LogIn", color: "text-emerald-500" },
+  checkout: { label: "Check-out effectué", icon: "LogOut", color: "text-gray-500" },
+  facture_impayee: { label: "Facture impayée", icon: "Receipt", color: "text-amber-500" },
+  abonnement_expiration: { label: "Abonnement expire bientôt", icon: "Clock", color: "text-orange-500" },
+  personnel_ajoute: { label: "Nouveau personnel", icon: "UserPlus", color: "text-violet-500" },
+  systeme: { label: "Notification système", icon: "Bell", color: "text-gray-500" },
+} as const;
+
+export type TypeNotification = keyof typeof TYPES_NOTIFICATIONS;
+
+// ─── Equipements Chambres ───────────────────────────────────────────────
+
+/** Liste des équipements disponibles pour les chambres */
+export const EQUIPEMENTS_CHAMBRE = [
+  { id: "climatisation", label: "Climatisation", icon: "Snowflake" },
+  { id: "wifi", label: "WiFi", icon: "Wifi" },
+  { id: "tv", label: "Télévision", icon: "Tv" },
+  { id: "minibar", label: "Minibar", icon: "Wine" },
+  { id: "coffre", label: "Coffre-fort", icon: "Lock" },
+  { id: "baignoire", label: "Baignoire", icon: "Bath" },
+  { id: "douche", label: "Douche", icon: "ShowerHead" },
+  { id: "balcon", label: "Balcon", icon: "Building" },
+  { id: "vue_mer", label: "Vue mer", icon: "Waves" },
+  { id: "telephone_chambre", label: "Téléphone chambre", icon: "Phone" },
+  { id: "seche_cheveux", label: "Sèche-cheveux", icon: "Wind" },
+  { id: "machine_cafe", label: "Machine à café", icon: "Coffee" },
+] as const;
+
+export type EquipementChambre = (typeof EQUIPEMENTS_CHAMBRE)[number]["id"];
+
+// ─── Jours de la semaine (français) ──────────────────────────────────────
+
+export const JOURS_SEMAINE = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+] as const;
+
+/** Abréviations des jours */
+export const JOURS_SEMAINE_COURT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"] as const;
+
+// ─── Couleurs du thème ─────────────────────────────────────────────────
+
+/** Palette de couleurs OGOUTEL_Prestige */
+export const COULEURS_THEME = {
+  /** Or principal — branding, CTA, accents */
+  gold: "#D4AF37",
+  /** Or sombre — hover states */
+  goldDark: "#C49E2E",
+  /** Or clair — fonds subtils */
+  goldLight: "#F5EED6",
+  /** Vert Côte d'Ivoire — headers, accents secondaires */
+  greenCI: "#1B4332",
+  /** Vert clair — badges succès */
+  greenCILight: "#D8F3DC",
+  /** Orange — alertes, badges attention */
+  orange: "#F77F00",
+  /** Noir — texte principal */
+  black: "#0A0A0A",
+  /** Gris foncé — texte secondaire */
+  grayDark: "#374151",
+  /** Gris clair — fonds, bordures */
+  grayLight: "#F3F4F6",
+  /** Blanc — fonds cartes */
+  white: "#FFFFFF",
+  /** Fond page */
+  background: "#F8F9FA",
+} as const;
