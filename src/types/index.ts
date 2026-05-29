@@ -197,7 +197,7 @@ export interface PersonnelHotelWithUser extends PersonnelHotel {
 
 // ─── Demande d'abonnement (landing page) ────────────────────────────────────
 
-export type StatutDemande = 'en_attente' | 'approuvee' | 'rejetee' | 'code_envoye';
+export type StatutDemande = 'en_attente' | 'contacte' | 'paye' | 'active';
 
 export interface AbonnementDemande {
   id: string;
@@ -205,13 +205,15 @@ export interface AbonnementDemande {
   email: string;
   telephone: string;
   nom_hotel: string;
-  ville: VilleCI;
-  quartier: string;
-  nombre_chambres: number;
-  plan_choisi: PlanId;
+  ville: string;
+  quartier: string | null;
+  nombre_chambres: number | null;
+  plan_choisi: 'basique' | 'standard' | 'premium';
   message: string | null;
   statut: StatutDemande;
+  notes_admin: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 // ─── Code d'accès ───────────────────────────────────────────────────────────
@@ -300,10 +302,10 @@ export interface ContactFormData {
   email: string;
   telephone: string;
   nom_hotel: string;
-  ville: VilleCI;
+  ville: string;
   quartier: string;
   nombre_chambres: number;
-  plan_choisi: PlanId;
+  plan_choisi: 'basique' | 'standard' | 'premium';
   message: string;
 }
 

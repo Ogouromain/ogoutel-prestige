@@ -237,3 +237,19 @@ export function formaterPrix(montant: number): string {
 export function aAccesNiveau(roleActuel: RoleUtilisateur, niveauMin: number): boolean {
   return ROLES[roleActuel].niveau <= niveauMin;
 }
+
+// ─── Statuts de demande d'abonnement ──────────────────────────────────────
+
+export const STATUTS_DEMANDE = [
+  { id: 'en_attente', label: 'En attente', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { id: 'contacte', label: 'Contacté', color: 'bg-sky-100 text-sky-800 border-sky-200' },
+  { id: 'paye', label: 'Payé', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  { id: 'active', label: 'Actif', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+] as const;
+
+export type StatutDemande = (typeof STATUTS_DEMANDE)[number]['id'];
+
+/** Retourne le libellé d'un statut de demande */
+export function getLibelleStatutDemande(id: StatutDemande): string {
+  return STATUTS_DEMANDE.find((s) => s.id === id)?.label ?? id;
+}

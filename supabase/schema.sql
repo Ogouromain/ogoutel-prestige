@@ -78,13 +78,9 @@ CREATE TYPE type_piece_identite AS ENUM (
   'Autre'
 );
 
--- Statuts d'une demande d'abonnement
-CREATE TYPE statut_demande AS ENUM (
-  'en_attente',
-  'approuvee',
-  'rejetee',
-  'code_envoye'
-);
+-- ⚠️ Les statuts de demande d'abonnement (en_attente, contacte, paye, active)
+--    sont gérés avec TEXT + CHECK dans la table abonnement_demandes
+--    pour plus de flexibilité.
 
 -- ============================================================
 -- 3. TABLE : hotels (Établissements hôteliers)
@@ -142,9 +138,8 @@ CREATE TABLE public.profiles (
   CONSTRAINT profiles_role_super_admin_sans_hotel CHECK (
     role != 'super_admin' OR hotel_id IS NULL
   ),
-  CONSTRAINT profiles_autre_role_avec_hotel CHECK (
-    role = 'super_admin' OR hotel_id IS NOT NULL
-  )
+  -- ⚠️ Pas de contrainte hotel_id NOT NULL ici car le trigger
+  --    handle_new_user() crée le profil AVANT l'affectation à un hôtel
 );
 
 COMMENT ON TABLE public.profiles IS 'Profils utilisateurs — extension de auth.users de Supabase';
@@ -301,28 +296,31 @@ COMMENT ON TABLE public.factures IS 'Factures liées aux réservations';
 COMMENT ON COLUMN public.factures.taux_tva IS 'Taux TVA en % (18% par défaut en CI)';
 
 -- ============================================================
--- 10. TABLE : abonnement_demandes (Demandes de la landing page)
+-- 10. TABLE : abonnement_demandes (Formulaire landing page)
 -- ============================================================
 
 CREATE TABLE public.abonnement_demandes (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nom_complet       TEXT NOT NULL,
   email             TEXT NOT NULL,
   telephone         TEXT NOT NULL,
   nom_hotel         TEXT NOT NULL,
-  ville             TEXT NOT NULL DEFAULT 'Abidjan',
-  quartier          TEXT NOT NULL DEFAULT '',
-  nombre_chambres   INTEGER NOT NULL DEFAULT 0,
-  plan_choisi       plan_abonnement NOT NULL DEFAULT 'basique',
+  ville             TEXT NOT NULL,
+  quartier          TEXT,
+  nombre_chambres   INTEGER,
+  plan_choisi       TEXT NOT NULL DEFAULT 'basique'
+                    CHECK (plan_choisi IN ('basique', 'standard', 'premium')),
   message           TEXT,
-  statut            statut_demande NOT NULL DEFAULT 'en_attente',
+  statut            TEXT NOT NULL DEFAULT 'en_attente'
+                    CHECK (statut IN ('en_attente', 'contacte', 'paye', 'active')),
+  notes_admin       TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-  -- Contraintes
-  CONSTRAINT abonnement_demandes_chambres CHECK (nombre_chambres >= 0)
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 COMMENT ON TABLE public.abonnement_demandes IS 'Demandes d''abonnement depuis la page landing';
+COMMENT ON COLUMN public.abonnement_demandes.statut IS 'Statut : en_attente | contacte | paye | active';
+COMMENT ON COLUMN public.abonnement_demandes.notes_admin IS 'Notes internes pour OGOUTEL_Prestige';
 
 -- ============================================================
 -- 11. TABLE : codes_acces (Codes d'inscription)
@@ -513,6 +511,11 @@ CREATE TRIGGER profiles_updated_at
 -- Auto-update updated_at sur reservations
 CREATE TRIGGER reservations_updated_at
   BEFORE UPDATE ON public.reservations
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Auto-update updated_at sur abonnement_demandes
+CREATE TRIGGER abonnement_demandes_updated_at
+  BEFORE UPDATE ON public.abonnement_demandes
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Auto-calcul des montants TTC sur factures
@@ -747,13 +750,16 @@ CREATE TRIGGER on_auth_user_created
 -- VUES (3) : v_stats_hotel, v_taux_occupation, v_top_chambres
 -- FONCTIONS (5) : update_updated_at, generer_numero_facture,
 --   calculer_montants_facture, calculer_reservation, generer_code_acces
--- TRIGGERS (5) : profiles_updated_at, reservations_updated_at,
---   factures_calcul_montants, reservations_calcul, on_auth_user_created
+-- TRIGGERS (6) : profiles_updated_at, reservations_updated_at,
+--   abonnement_demandes_updated_at, factures_calcul_montants,
+--   reservations_calcul, on_auth_user_created
 -- INDEX (32) : optimisés pour les requêtes fréquentes
 -- RLS (18 politiques) : isolation multi-tenant stricte
--- ENUMS (8) : plan_abonnement, type_chambre, statut_chambre,
+-- ENUMS (7) : plan_abonnement, type_chambre, statut_chambre,
 --   statut_reservation, statut_facture, mode_paiement,
---   type_piece_identite, statut_demande
+--   type_piece_identite
+-- TEXT+CHECK (2) : profiles.role, abonnement_demandes.plan_choisi,
+--   abonnement_demandes.statut, personnel_hotel.role
 -- TVA PAR DÉFAUT : 18% (taux en vigueur en Côte d'Ivoire)
 -- DEVISE : FCFA (Franc CFA) - DECIMAL(12,2)
 -- ============================================================

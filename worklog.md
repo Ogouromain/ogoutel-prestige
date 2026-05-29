@@ -25,3 +25,20 @@ Stage Summary:
 - Smooth scroll navigation with sticky transparent navbar
 - Mobile-responsive with Sheet menu
 - Framer Motion animations throughout
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix SQL schema - update abonnement_demandes table, remove unused ENUM, fix trigger bug
+
+Work Log:
+- Removed statut_demande ENUM, replaced with TEXT+CHECK in abonnement_demandes
+- Updated abonnement_demandes table to match user spec exactly (gen_random_uuid, TEXT CHECK for plan_choisi and statut, added notes_admin, updated_at, nullable quartier/nombre_chambres)
+- Fixed critical trigger bug: removed profiles_autre_role_avec_hotel constraint that blocked handle_new_user trigger
+- Added abonnement_demandes_updated_at trigger for auto-updating updated_at
+- Updated types/index.ts: new StatutDemande type, updated AbonnementDemande interface, updated ContactFormData
+- Updated constants.ts: added STATUTS_DEMANDE with colors, getLibelleStatutDemande helper
+
+Stage Summary:
+- SQL schema clean, aligned with user spec for PARTIE 3
+- Critical trigger bug fixed, lint passes, dev server OK
