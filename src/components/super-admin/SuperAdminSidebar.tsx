@@ -66,11 +66,9 @@ const NAV_ITEMS: NavItem[] = [
     href: '/super-admin/activation-codes',
   },
   {
-    label: 'Revenus',
+    label: 'Analyses',
     icon: <DollarSign className="size-5" />,
-    href: '/super-admin',
-    disabled: true,
-    badge: 'Bientôt',
+    href: '/super-admin/analytics',
   },
   {
     label: 'Paramètres',

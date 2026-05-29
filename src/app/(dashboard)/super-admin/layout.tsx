@@ -1,11 +1,10 @@
 import SuperAdminSidebar from '@/components/super-admin/SuperAdminSidebar';
+import DashboardHeader from '@/components/shared/DashboardHeader';
 
-// ─── Layout Super Admin ─────────────────────────────────────────────────────────
-// Serveur component — fournit la structure sidebar + zone de contenu principale.
-// La sidebar DesktopSidebar anime sa largeur entre 80px (réduit) et 256px (étendu).
-// Sur mobile, un Sheet (overlay) est utilisé par le composant MobileSidebar.
-// Le contenu principal utilise `ml-0 md:ml-64` (256px = w-64) en supposant
-// la sidebar étendue par défaut sur desktop.
+// ─── Layout Super Admin ─────────────────────────────────────────────────────
+// Serveur component — sidebar + DashboardHeader + zone de contenu.
+// Le DashboardHeader inclut : recherche globale (Ctrl+K), toggle thème,
+// et bouton notifications.
 
 export default function SuperAdminLayout({
   children,
@@ -20,6 +19,7 @@ export default function SuperAdminLayout({
       {/* Zone de contenu principale */}
       <main className="flex-1 ml-0 md:ml-64 transition-[margin] duration-300 ease-in-out">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <DashboardHeader />
           {children}
         </div>
       </main>

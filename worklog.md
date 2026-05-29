@@ -158,3 +158,225 @@ Stage Summary:
 - New validation schemas: checkInSchema, addExpenseSchema, subscriptionFormSchema
 - New utility functions: formatPhone(), getPlanFeatures(), generateActivationCode()
 - New constants: CATEGORIES_DEPENSES (14 items), NATIONALITES_CI (30 items)
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Create 4 shared/utility components (ErrorBoundary, ThemeToggle, SectionLoading, EmptyState)
+
+Work Log:
+- Created `src/components/shared/ErrorBoundary.tsx` — React class-based Error Boundary with AlertTriangle icon, Card wrapper, "Réessayer" retry button, optional custom fallback & onError callback, dev-mode error logging, French error message
+- Created `src/components/settings/ThemeToggle.tsx` — Dark/light mode toggle using next-themes (useTheme), Sun/Moon icons with smooth rotation+scale transition, ghost Button + Tooltip, sr-only accessibility labels, useSyncExternalStore for hydration-safe mounting detection (avoids React Compiler setState-in-effect warning)
+- Created `src/components/shared/SectionLoading.tsx` — Reusable skeleton component matching existing dashboard pattern: hasHeader (title+subtitle skeleton), hasCards (grid of card skeletons), lines (variable-width content lines), uses shadcn Skeleton
+- Created `src/components/shared/EmptyState.tsx` — Centered empty state with optional icon in muted circle, title, description, optional action slot, muted colors, used for no-data scenarios (no reservations, no rooms, etc.)
+- ESLint: 0 errors, 1 pre-existing warning (TanStack Table — unchanged)
+
+Stage Summary:
+- 4 files created across shared/ and settings/ directories
+- All components fully typed with TypeScript, 'use client' directive
+- Follows OGOUTEL design system: French text, shadcn/ui, Lucide icons, Tailwind
+- ErrorBoundary uses class component (React requirement for error boundaries)
+- ThemeToggle uses useSyncExternalStore instead of useEffect+setState for React Compiler compatibility
+- SectionLoading follows the exact skeleton pattern from existing dashboard code
+- EmptyState is a lightweight, flexible component for any empty data scenario
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Create ExportButtons component and export API route
+
+Work Log:
+- Created `src/components/shared/ExportButtons.tsx` — Dropdown menu with 3 export formats:
+  - CSV: standard export using `exporterCSV` and `telechargerFichier` from utils
+  - Excel: CSV with BOM (\uFEFF) for proper UTF-8 encoding in Excel
+  - PDF: opens new window with formatted HTML table (OGOUTEL Prestige branding), triggers browser print dialog
+  - Uses shadcn DropdownMenu, Button with Download icon
+  - FileText, Table, FileDown icons for each format
+  - Toast notification on successful export ("Export {format} réussi")
+  - Disabled state when data array is empty
+  - Touch-friendly (min-h-[44px], min-w-[44px] on all interactive elements)
+  - Custom columns support via `columns` prop with `{ key, label }` objects
+  - Custom format filter via `formats` prop (default: ["csv", "excel", "pdf"])
+  - Fallback: auto-extracts column keys from data objects if no columns provided
+- Created `src/app/api/export/route.ts` — GET API route for server-side data export:
+  - Query params: `type` (reservations/clients/finances), `format` (csv/json), `hotel_id` (optional)
+  - CSV response: text/csv charset=utf-8 with BOM, Content-Disposition with filename
+  - JSON response: application/json with meta (type, format, exportDate, count) + data array
+  - Demo data fallback: 12 reservations, 10 clients, 10 finance entries with French column headers
+  - Supabase path: fetches from reservations/clients/factures tables with formatted French labels
+  - Status/payment formatters: French translations (en_attente→En attente, paye→Payé, etc.)
+  - Proper date formatting (dd/MM/yyyy French locale)
+  - Proper monetary formatting (French number format + FCFA)
+  - Filename includes date: `reservations_2025-01-15.csv`
+  - Input validation: returns 400 for invalid type or format
+  - Graceful fallback to demo data if Supabase query fails
+- ESLint: 0 errors, 1 pre-existing warning (TanStack Table — unchanged)
+- Dev server verified stable: 200 on port 3000
+
+Stage Summary:
+- 2 files created: ExportButtons.tsx (shared component) + export/route.ts (API route)
+- ExportButtons: fully typed, 'use client', shadcn/ui + Lucide icons, 3 export formats
+- Export API: CSV with BOM, JSON with meta, 3 data types, Supabase + demo fallback
+- All text in French, responsive design, touch-friendly targets
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Create super-admin analytics API route and AnalyticsCharts component
+
+Work Log:
+- Created `src/app/api/super-admin/analytics/route.ts` — GET API route returning comprehensive analytics:
+  - hotelsParMois: new hotels count per month (last 6 months)
+  - repartitionPlans: subscription distribution with count and revenue per plan
+  - villesCouvertes: hotel count per city (sorted desc, max 10)
+  - topHotels: top 10 hotels by occupation rate (nom, ville, plan, chambres, taux_occupation, revenus_mois)
+  - revenusMensuels: monthly revenue over last 6 months
+  - Demo data fallback when Supabase not configured
+  - French month formatting helper (formatMoisAnnee)
+  - Supabase admin client with dynamic import + graceful degradation
+- Created `src/components/super-admin/AnalyticsCharts.tsx` — Self-contained analytics dashboard:
+  - Chart 1: BarChart (gold #D4AF37 bars) — Nouveaux hôtels par mois
+  - Chart 2: PieChart donut (innerRadius=60) — Répartition par plan with custom % labels, legend with plan names + counts + revenue
+  - Chart 3: Horizontal BarChart (layout="vertical", green CI #1B4332 bars) — Villes couvertes, sorted desc, max 10
+  - Chart 4: AreaChart with gradient fill (#D4AF37) — Revenus mensuels with custom FCFA tooltip, Y-axis abbreviation (K/M)
+  - Table: Top hôtels les plus actifs — shadcn Table with columns: Nom, Ville, Plan (colored badge), Chambres, Taux occupation (color-coded badge: green≥80%, amber≥60%, red<60%), Revenus/mois (formatCFA)
+  - Loading: ChartSkeleton + TableSkeleton components with shadcn Skeleton
+  - Empty state: "Aucune donnée analytique disponible" with BarChart3 icon
+  - Error state: red alert with AlertTriangle icon + Réessayer button
+  - Header: "Analyses détaillées" title with TrendingUp icon + Actualiser button (refreshKey-based refetch)
+  - 2x2 responsive grid (1 col mobile, 2 col md+) for charts, full-width table below
+  - Clickable table rows (placeholder onClick)
+  - Uses recharts: BarChart, PieChart, AreaChart, ResponsiveContainer, Tooltip, Legend
+  - Color palette: Gold #D4AF37, Green CI #1B4332, Gray #9CA3AF (basique), Emerald #10B981 (standard)
+- ESLint: 0 errors, 1 pre-existing warning (TanStack Table — unchanged)
+- Dev server verified stable: 200 on port 3000
+
+Stage Summary:
+- 2 files created: analytics API route + AnalyticsCharts component
+- API: 5 analytics datasets with demo fallback, French month labels, plan revenue calculation
+- Component: 4 recharts visualizations + 1 shadcn table, loading/error/empty states
+- All text in French, responsive 2x2 grid layout, OGOUTEL color palette
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Create 3 print component files (CheckInReceipt, PaymentReceipt, DailyReport)
+
+Work Log:
+- Read worklog.md, existing project structure, utils.ts, constants.ts for context
+- Created `src/components/print/` directory
+- Created `src/components/print/CheckInReceipt.tsx` — Printable check-in receipt:
+  - Props: CheckInReceiptData with reservation, client, room, dates, financial, hotel info
+  - Green (#1B4332) header with gold (#D4AF37) OGOUTEL_Prestige branding
+  - Sections: client info (name, phone, nationality), room info (number, type, floor), stay dates (arrival, departure, nights), financial summary (price/night, total with gold separator)
+  - QR code placeholder (dashed bordered box with QrCode icon)
+  - Footer: print date, "Merci de votre confiance", hotel info
+  - @media print CSS hides everything except `.print-receipt-checkin`
+  - "Imprimer" button with Printer icon, hidden on print via `.no-print`
+- Created `src/components/print/PaymentReceipt.tsx` — Printable payment receipt:
+  - Props: PaymentReceiptData with invoice, client, room, payment details, hotel info
+  - Same branded header/footer pattern as CheckInReceipt
+  - Invoice number + payment date in header
+  - Client + room info section
+  - Payment breakdown table: HT, TVA (with rate), TTC (bold green total with gold separator)
+  - Payment method section with gold accent
+  - Green "Paiement confirmé" badge with CheckCircle2 icon
+  - @media print CSS targets `.print-receipt-payment`
+  - Internal `getLibelleModePaiement()` for French payment mode labels
+- Created `src/components/print/DailyReport.tsx` — Printable daily report:
+  - Props: DailyReportData with date, hotel, room stats, activity, arrivals/departures arrays, reservations array
+  - A4 portrait layout (max-w-3xl)
+  - Branded header with report date
+  - Summary stats grid: total rooms, available (green), occupied (red), occupancy rate (orange)
+  - Activity cards: check-ins (sky), check-outs (gray), daily revenue (green)
+  - Arrivals table: row number, client, room, type, time (responsive hidden columns)
+  - Departures table: same structure
+  - Reservations table: row number, client, room, arrival date, departure date
+  - Conditional rendering: tables only shown when arrays have data
+  - Footer: "Rapport généré automatiquement", print timestamp with time
+  - @media print CSS targets `.print-daily-report`
+- All 3 components use: `useRef` for print targeting, `window.print()`, `cn()` utility, `formatCFA/formatDate/formatDateCourt`, Lucide icons, shadcn Button
+- ESLint: 0 errors, 1 pre-existing warning (TanStack Table — unchanged)
+
+Stage Summary:
+- 3 files created in `src/components/print/`
+- Each component: self-contained, standalone, fully typed with exported interfaces
+- @media print CSS in each component uses unique class selectors to avoid conflicts
+- Print button hidden via `.no-print` class
+- Design system: Gold #D4AF37, Green CI #1B4332, Orange #F77F00
+- All text in French, proper typography for printing (black text, white background)
+- CheckInReceipt: 80mm receipt-style layout
+- PaymentReceipt: 80mm receipt-style layout
+- DailyReport: A4 portrait layout with responsive tables
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Create Global Search API route and GlobalSearch command palette component
+
+Work Log:
+- Created `src/app/api/search/route.ts` — GET API route for global search:
+  - Query params: `q` (search term, min 2 chars), `type` (optional: clients/chambres/reservations)
+  - In-memory rate limiter: max 20 requests/minute per IP with periodic cleanup
+  - Returns demo data when Supabase not configured (graceful degradation)
+  - Searches across clients (nom, prenom, telephone, email), chambres (numero, type, statut), reservations (id, client_nom, chambre_numero, statut)
+  - Results grouped by type with counts and total
+  - Supabase path: authenticated, scoped to hotel_id, uses ilike for case-insensitive search
+  - Max 8 results per category, input validation for q and type
+  - Response format: `{ success: true, data: { clients, chambres, reservations, total } }`
+  - Error handling: 400 (validation), 401 (auth), 403 (no hotel), 429 (rate limit), 500 (server error)
+- Created `src/components/shared/GlobalSearch.tsx` — Command palette search component:
+  - Props: `open` (boolean), `onOpenChange` (function) — controlled via parent
+  - Uses Dialog with Command from shadcn/ui (not CommandMenu, standalone with Dialog+Command)
+  - Native HTML input with search icon, ESC keyboard hint, autofocus
+  - Debounced search (300ms) with AbortController for request cancellation
+  - Results grouped by type with heading counts: Clients (Users icon), Chambres (Bed icon), Réservations (CalendarDays icon)
+  - Each result item shows contextual details: client name+phone, chambre number+type+price, reservation client+room+date
+  - Color-coded status badges (emerald/red/amber/sky) for chambre and reservation statuts
+  - Clicking a result navigates via useRouter to: /staff/clients, /staff/rooms, /admin/reservations
+  - Loading state: Loader2 spinner + "Recherche en cours..."
+  - Empty state: SearchX icon + "Aucun résultat trouvé"
+  - Initial state: search icon + "Tapez au moins 2 caractères" + type icons preview
+  - Full cleanup on close/unmount: clears query, results, debounce, abort controller
+  - French text throughout
+- ESLint: 0 errors, 1 pre-existing warning (TanStack Table — unchanged)
+
+Stage Summary:
+- 2 files created: search API route + GlobalSearch component
+- API: rate-limited, Supabase + demo fallback, grouped results by type
+- Component: Dialog+Command pattern, debounced search, status badges, navigation on click
+- All text in French, shadcn/ui + Lucide icons, Tailwind CSS
+---
+Task ID: optimize-production
+Agent: Main Agent + 5 parallel sub-agents
+Task: Optimise et finalise OGOUTEL_Prestige pour la production (9 tâches)
+
+Work Log:
+- Audited all existing components: sidebars (3), dashboard pages (14), admin components (5), utility components
+- Found existing patterns: loading skeletons, error handling with toast.error(), responsive sidebars, overflow-x-auto tables, focus-visible, sr-only labels
+- Dispatched 5 parallel agents to create new components
+- Agent 1: Created ErrorBoundary, ThemeToggle, SectionLoading, EmptyState (4 files)
+- Agent 2: Created GlobalSearch + /api/search API route (2 files) — Ctrl+K shortcut, debounce, grouped results
+- Agent 3: Created CheckInReceipt, PaymentReceipt, DailyReport print components (3 files) — @media print
+- Agent 4: Created ExportButtons + /api/export API route (2 files) — CSV, Excel (BOM), PDF
+- Agent 5: Created AnalyticsCharts + /api/super-admin/analytics API route (2 files) — 4 charts + top hotels table
+- Created DashboardHeader component with search trigger, theme toggle, notifications
+- Updated 3 dashboard layouts (admin, staff, super-admin) to include DashboardHeader
+- Created /super-admin/analytics page
+- Updated SuperAdminSidebar: replaced disabled "Revenus" with active "Analyses" link
+- Fixed React Compiler lint error (set-state-in-effect) with useSyncExternalStore pattern
+
+Stage Summary:
+- 15 new files created, 4 existing files updated
+- ESLint: 0 errors (1 pre-existing TanStack Table warning)
+- Dev server stable: all pages compile and serve 200
+- All 9 optimization areas addressed:
+  1. Performance: SectionLoading skeletons, existing patterns verified
+  2. Responsive: Sidebars already collapsible, tables overflow-x-auto, touch-friendly confirmed
+  3. Error Handling: ErrorBoundary component with retry, French messages everywhere
+  4. Accessibility: sr-only labels, aria-labels, focus-visible on all interactive elements
+  5. Print: 3 receipt/report components with @media print CSS
+  6. Export: CSV, Excel (BOM), PDF (print dialog) via ExportButtons
+  7. Analytics: 4 charts (bar, pie, horizontal bar, area) + top hotels table
+  8. Global Search: Ctrl+K palette searching clients, rooms, reservations
+  9. Settings: Dark/light mode toggle in dashboard header
