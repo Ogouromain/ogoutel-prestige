@@ -17,13 +17,9 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 2. TYPES ÉNUMÉRÉS PERSONNALISÉS
 -- ============================================================
 
--- Rôles utilisateurs du SaaS
-CREATE TYPE user_role AS ENUM (
-  'super_admin',
-  'admin_hotel',
-  'gerant',
-  'receptionniste'
-);
+-- ⚠️ Les rôles utilisateurs (super_admin, admin_hotel, gerant, receptionniste)
+--    sont gérés avec TEXT + CHECK dans la table profiles et personnel_hotel
+--    pour plus de flexibilité.
 
 -- Plans d'abonnement
 CREATE TYPE plan_abonnement AS ENUM (
@@ -97,29 +93,35 @@ CREATE TYPE statut_demande AS ENUM (
 
 CREATE TABLE public.profiles (
   id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email           TEXT NOT NULL,
-  full_name       TEXT NOT NULL DEFAULT '',
+  email           TEXT UNIQUE NOT NULL,
+  full_name       TEXT,
   phone           TEXT,
-  role            user_role NOT NULL DEFAULT 'receptionniste',
+  role            TEXT NOT NULL DEFAULT 'receptionniste'
+                    CHECK (role IN ('super_admin', 'admin_hotel', 'gerant', 'receptionniste')),
   hotel_id        UUID REFERENCES public.hotels(id) ON DELETE SET NULL,
   avatar_url      TEXT,
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  -- Contraintes
-  CONSTRAINT profiles_email_unique UNIQUE (email),
-  CONSTRAINT profiles_role_super_admin_hotel CHECK (
+  -- Contraintes métier
+  CONSTRAINT profiles_role_super_admin_sans_hotel CHECK (
     role != 'super_admin' OR hotel_id IS NULL
   ),
-  CONSTRAINT profiles_role_other_hotel CHECK (
+  CONSTRAINT profiles_autre_role_avec_hotel CHECK (
     role = 'super_admin' OR hotel_id IS NOT NULL
   )
 );
 
-COMMENT ON TABLE public.profiles IS 'Profils utilisateurs liés à auth.users';
-COMMENT ON COLUMN public.profiles.role IS 'Rôle SaaS : super_admin, admin_hotel, gerant, receptionniste';
-COMMENT ON COLUMN public.profiles.hotel_id IS 'Hôtel d''affectation (NULL pour super_admin)';
+COMMENT ON TABLE public.profiles IS 'Profils utilisateurs — extension de auth.users de Supabase';
+COMMENT ON COLUMN public.profiles.id IS 'UUID identique à auth.users.id';
+COMMENT ON COLUMN public.profiles.email IS 'Email unique identique à auth.users.email';
+COMMENT ON COLUMN public.profiles.full_name IS 'Nom complet de l''utilisateur';
+COMMENT ON COLUMN public.profiles.role IS 'Rôle SaaS : super_admin | admin_hotel | gerant | receptionniste';
+COMMENT ON COLUMN public.profiles.hotel_id IS 'Hôtel d''affectation (NULL = super_admin global)';
+COMMENT ON COLUMN public.profiles.is_active IS 'Compte actif / désactivé';
+COMMENT ON COLUMN public.profiles.profiles_role_super_admin_sans_hotel IS 'Le super_admin n''est rattaché à aucun hôtel';
+COMMENT ON COLUMN public.profiles.profiles_autre_role_avec_hotel IS 'Les autres rôles doivent obligatoirement être rattachés à un hôtel';
 
 -- ============================================================
 -- 4. TABLE : hotels (Établissements hôteliers)
@@ -160,7 +162,7 @@ CREATE TABLE public.personnel_hotel (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   hotel_id        UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
   user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  role            user_role NOT NULL,
+  role            TEXT NOT NULL CHECK (role IN ('admin_hotel', 'gerant', 'receptionniste')),
   nom_complet     TEXT NOT NULL,
   telephone       TEXT NOT NULL,
   email           TEXT NOT NULL,
@@ -169,7 +171,6 @@ CREATE TABLE public.personnel_hotel (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   -- Contraintes
-  CONSTRAINT personnel_hotel_role_valid CHECK (role IN ('admin_hotel', 'gerant', 'receptionniste')),
   CONSTRAINT personnel_hotel_unique_user UNIQUE (user_id),
   CONSTRAINT personnel_hotel_unique_hotel_email UNIQUE (hotel_id, email)
 );
@@ -747,8 +748,8 @@ BEGIN
       split_part(NEW.email, '@', 1)
     ),
     COALESCE(
-      (NEW.raw_user_meta_data->>'role')::user_role,
-      'receptionniste'::user_role
+      NEW.raw_user_meta_data->>'role',
+      'receptionniste'
     ),
     TRUE
   );
@@ -790,7 +791,7 @@ CREATE TRIGGER on_auth_user_created
 --
 -- RLS (18 politiques) : isolation multi-tenant stricte
 --
--- ENUMS (9) : user_role, plan_abonnement, type_chambre,
+-- ENUMS (8) : plan_abonnement, type_chambre,
 --   statut_chambre, statut_reservation, statut_facture,
 --   mode_paiement, type_piece_identite, statut_demande
 --
