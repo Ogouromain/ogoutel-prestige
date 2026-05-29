@@ -37,7 +37,19 @@ type RoleUtilisateur =
 const ROUTES_PUBLIQUES = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
 /** Routes d'API accessibles sans authentification */
-const ROUTES_API_PUBLIQUES = ["/api/send-contact", "/api/auth", "/api/pricing", "/api/"];
+const ROUTES_API_PUBLIQUES = [
+  "/api/send-contact",
+  "/api/send-subscription-email",
+  "/api/validate-activation-code",
+  "/api/webhooks",
+  "/api/auth",
+  "/api/pricing",
+  "/api/rooms",
+  "/api/bookings",
+  "/api/contact",
+  "/api/testimonials",
+  "/api/",
+];
 
 /** Association rôle → route dashboard */
 const DASHBOARD_PAR_ROLE: Record<RoleUtilisateur, string> = {

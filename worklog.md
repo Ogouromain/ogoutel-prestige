@@ -198,3 +198,26 @@ Stage Summary:
 - API route gracefully skips DB insert and email sending when services aren't configured
 - Toast notifications work correctly with react-hot-toast
 - Complete landing page with 8 sections, contact form, and API route all functional
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Create 4 API Routes — subscription email, activation code, validation, webhooks
+
+Work Log:
+- Created app/api/send-subscription-email/route.ts: POST endpoint receiving subscription form data, inserts into Supabase abonnement_demandes, sends beautiful HTML email to admin (omouitsi@gmail.com) with prospect details + WhatsApp direct link + dashboard button, generates WhatsApp link, returns success/error
+- Created app/api/generate-activation-code/route.ts: PROTECTED POST endpoint (super_admin only), verifies auth via Supabase getUser(), generates unique code OGT-XXXX-XXXX (no ambiguous chars), inserts into codes_acces table with 30-day expiration, auto-fetches client info from subscription_request if not provided, sends celebration HTML email to client with code + instructions + register link + WhatsApp support, updates abonnement_demandes status to 'paye'
+- Created app/api/validate-activation-code/route.ts: PUBLIC POST+GET endpoint, validates activation code format (OGT-XXXX-XXXX regex), checks: code exists, not used, not expired, active, returns plan_name/plan_id/hotel_name/expires_at. GET convenience endpoint via query param ?code=
+- Created app/api/webhooks/route.ts: General webhook handler for future integrations (payment, email, notification, custom), HMAC-SHA256 signature verification when WEBHOOK_SECRET is set, logs events to activites_log table, CORS preflight support, type-specific processing placeholders
+- Updated middleware.ts ROUTES_API_PUBLIQUES to explicitly list all public API routes
+- All routes use dynamic imports for Supabase/Resend with graceful degradation
+- Beautiful HTML email templates with brand colors (gold #D4AF37, green #1B4332, black #0A0A0A)
+- ESLint passes with zero errors
+
+Stage Summary:
+- 4 new production-ready API routes created
+- All routes handle missing Supabase/Resend gracefully
+- Code generation: OGT-XXXX-XXXX format, no ambiguous chars
+- Email templates: professional HTML with gradient headers, responsive tables, action buttons
+- Protected route (generate-activation-code) verifies super_admin role via Supabase auth
+- Public validation route supports both POST body and GET query param
