@@ -21,12 +21,12 @@ const PLAN_PRICES: Record<string, number> = {
 // ─── Demo data ────────────────────────────────────────────────────────────────
 
 const DEMO_STATS = {
-  total_hotels: 24,
-  active_hotels: 18,
-  pending_subscriptions: 7,
-  codes_this_month: 5,
-  estimated_monthly_revenue: 835000,
-  recent_subscriptions: [
+  totalHotels: 24,
+  activeHotels: 18,
+  pendingRequests: 7,
+  codesThisMonth: 5,
+  estimatedRevenue: 835000,
+  recentRequests: [
     {
       id: 'demo-1',
       nom_complet: 'Koné Ibrahim',
@@ -93,7 +93,7 @@ const DEMO_STATS = {
       updated_at: new Date(Date.now() - 86400000 * 5).toISOString(),
     },
   ],
-  recent_hotels: [
+  recentHotels: [
     {
       id: 'demo-h1',
       nom: 'Hôtel Le Palmier',
@@ -155,11 +155,11 @@ const DEMO_STATS = {
       created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
     },
   ],
-  subscriptions_by_plan: {
-    basique: 10,
-    standard: 9,
-    premium: 5,
-  },
+  subscriptionsByPlan: [
+    { plan: 'basique', count: 10 },
+    { plan: 'standard', count: 9 },
+    { plan: 'premium', count: 5 },
+  ],
 };
 
 // ─── Route Handler ──────────────────────────────────────────────────────────
@@ -229,16 +229,19 @@ export async function GET() {
       }
     }
 
-    // ── Build response ──
+    // ── Build response (camelCase for frontend compatibility) ──
     const data = {
-      total_hotels: totalHotelsRes.count ?? 0,
-      active_hotels: activeHotelsRes.count ?? 0,
-      pending_subscriptions: pendingSubsRes.count ?? 0,
-      codes_this_month: codesMonthRes.count ?? 0,
-      estimated_monthly_revenue: estimatedRevenue,
-      recent_subscriptions: recentSubsRes.data ?? [],
-      recent_hotels: recentHotelsRes.data ?? [],
-      subscriptions_by_plan: subscriptionsByPlan,
+      totalHotels: totalHotelsRes.count ?? 0,
+      activeHotels: activeHotelsRes.count ?? 0,
+      pendingRequests: pendingSubsRes.count ?? 0,
+      codesThisMonth: codesMonthRes.count ?? 0,
+      estimatedRevenue: estimatedRevenue,
+      recentRequests: recentSubsRes.data ?? [],
+      recentHotels: recentHotelsRes.data ?? [],
+      subscriptionsByPlan: Object.entries(subscriptionsByPlan).map(([plan, count]) => ({
+        plan,
+        count,
+      })),
     };
 
     return NextResponse.json({ success: true, data });

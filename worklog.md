@@ -484,3 +484,27 @@ Stage Summary:
 - useFetchWithRetry hook available for future data fetching with auto-retry
 - Print CSS comprehensive: nav/dialogs hidden, colors reset, receipts styled
 - Cross-origin warning resolved with wildcard preview-chat domain pattern
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix super-admin dashboard showing 0 for all stats - snake_case/camelCase mismatch bug
+
+Work Log:
+- Analyzed the uploaded screenshot showing all stats at 0 (Hôtels Actifs: 0, Demandes en Attente: 0, etc.)
+- Explored the full codebase structure: Supabase PostgreSQL as real DB, Prisma SQLite as legacy
+- Identified the root cause: `/api/super-admin/stats/route.ts` returns snake_case keys (`total_hotels`, `active_hotels`, `recent_subscriptions`, `subscriptions_by_plan` as object) but the frontend `SuperAdminStats` interface expects camelCase keys (`totalHotels`, `activeHotels`, `recentRequests`, `subscriptionsByPlan` as array)
+- Also found `subscriptions_by_plan` was returned as a plain object `{ basique: 0, standard: 0, premium: 0 }` but frontend expected an array `[{ plan: 'basique', count: 0 }, ...]`
+- Fixed the API route to transform all response keys to camelCase
+- Fixed demo data (DEMO_STATS) to also use camelCase for consistency
+- Verified fix by calling the API endpoint: now returns `totalHotels: 24`, `activeHotels: 18`, etc.
+- Checked other super-admin API routes (hotels, subscriptions, codes, analytics) - no similar mismatch found
+- Checked admin dashboard API - uses snake_case consistently, no mismatch
+
+Stage Summary:
+- **Root Cause**: Data format mismatch between API (snake_case) and frontend (camelCase)
+- **Fix**: Updated `/api/super-admin/stats/route.ts` to return camelCase keys
+- **Key Changes**: 
+  - Renamed all response keys from snake_case to camelCase
+  - Converted `subscriptions_by_plan` from object to array format
+  - Updated DEMO_STATS to match the new camelCase format
+- **Verified**: API now returns correct format, confirmed via curl test
