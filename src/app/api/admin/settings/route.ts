@@ -210,7 +210,7 @@ export async function PUT(request: Request) {
       }
     }
 
-    if (nombre_etoiles !== undefined && updates.nombre_etoiles !== undefined) {
+    if (updates.nombre_etoiles !== undefined) {
       const stars = Number(updates.nombre_etoiles);
       if (isNaN(stars) || stars < 0 || stars > 5) {
         return NextResponse.json(
@@ -218,6 +218,7 @@ export async function PUT(request: Request) {
           { status: 400 }
         );
       }
+      updates.nombre_etoiles = stars;
     }
 
     if (Object.keys(updates).length === 0) {

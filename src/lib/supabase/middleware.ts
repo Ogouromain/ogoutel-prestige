@@ -37,7 +37,6 @@ const ROUTES_API_PUBLIQUES = [
   "/api/send-contact",
   "/api/send-subscription-email",
   "/api/validate-activation-code",
-  "/api/generate-activation-code",
   "/api/rooms",
   "/api/bookings",
   "/api/contact",

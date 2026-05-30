@@ -136,15 +136,7 @@ export async function POST(request: NextRequest) {
 
     const { data: codeData, error: fetchError } = await supabase
       .from('codes_acces')
-      .select(`
-        code,
-        plan_choisi,
-        date_expiration,
-        actif,
-        utilise_par,
-        subscription_request_id,
-        abonnement_demandes!inner(nom_hotel)
-      `)
+      .select('code, plan, date_expiration, est_utilise, utilise_par, demande_id, nom_hotel')
       .eq('code', normalizedCode)
       .maybeSingle();
 
@@ -167,7 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3b. Code pas encore utilisé ?
-    if (codeData.utilise_par) {
+    if (codeData.est_utilise) {
       return NextResponse.json<ValidationResponse>({
         valid: false,
         code: normalizedCode,
@@ -184,18 +176,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3d. Code actif ?
-    if (codeData.actif === false) {
-      return NextResponse.json<ValidationResponse>({
-        valid: false,
-        code: normalizedCode,
-        error: 'Ce code a été désactivé. Contactez le support pour plus d\'informations.',
-      });
-    }
-
     // ── 4. Code valide ! ──
-    const hotelName = codeData.abonnement_demandes?.nom_hotel ?? 'Hôtel non spécifié';
-    const planId = codeData.plan_choisi;
+    const hotelName = codeData.nom_hotel ?? 'Hôtel non spécifié';
+    const planId = codeData.plan;
     const planName = PLAN_LABELS[planId] ?? planId;
 
     return NextResponse.json<ValidationResponse>({
@@ -204,7 +187,7 @@ export async function POST(request: NextRequest) {
       plan_id: planId,
       plan_name: planName,
       hotel_name: hotelName,
-      expires_at: codeData.date_expiration,
+      expires_at: codeData.date_expiration ?? undefined,
     });
   } catch (error) {
     console.error('[validate-activation-code] Erreur:', error);

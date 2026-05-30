@@ -235,7 +235,6 @@ export async function GET(request: Request) {
 
     if (statut) query = query.eq('statut', statut);
 
-    if (chambreId) query = query.eq('id', chambreId);
     if (type) query = query.eq('type', type);
     if (etage) query = query.eq('etage', parseInt(etage));
     if (search) query = query.ilike('numero', `%${search}%`);
@@ -456,11 +455,21 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('hotel_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.hotel_id) {
+      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    }
+
     // ── Update ──
     const { data: chambre, error } = await supabase
       .from('chambres')
       .update(updates)
-      .eq('id', chambreId)
+      .eq('id', roomId)
       .select()
       .single();
 
@@ -500,7 +509,7 @@ export async function DELETE(request: Request) {
     const supabase = await createClient();
 
     if (!supabase) {
-      const chambre = DEMO_CHAMBRES.find(c => c.id === roomId);
+      const chambre = DEMO_CHAMBRES.find(c => c.id === chambreId);
       if (!chambre) {
         return NextResponse.json({ success: false, error: 'Chambre non trouvée (démo).' }, { status: 404 });
       }
