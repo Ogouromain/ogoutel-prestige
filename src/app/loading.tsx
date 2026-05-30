@@ -8,7 +8,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function Loading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
         <LoadingSpinner size="lg" variant="default" label="Chargement..." />
       </div>

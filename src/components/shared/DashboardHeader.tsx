@@ -60,7 +60,7 @@ export default function DashboardHeader({ title }: DashboardHeaderProps) {
       <div className="mb-6 flex items-center justify-between gap-4">
         {title && (
           <div className="hidden sm:block">
-            <h2 className="text-lg font-semibold text-[#0A0A0A]">{title}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           </div>
         )}
 
@@ -71,12 +71,12 @@ export default function DashboardHeader({ title }: DashboardHeaderProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden gap-2 text-gray-500 sm:flex"
+                className="hidden gap-2 text-muted-foreground sm:flex"
                 onClick={openSearch}
               >
                 <Search className="size-4" />
                 <span className="text-sm">Rechercher...</span>
-                <kbd className="pointer-events-none ml-2 hidden select-none items-center gap-1 rounded border bg-gray-50 px-1.5 font-mono text-[10px] font-medium text-gray-400 md:flex">
+                <kbd className="pointer-events-none ml-2 hidden select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground md:flex">
                   <span className="text-xs">⌘</span>K
                 </kbd>
               </Button>

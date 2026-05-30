@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { PLANS_ABONNEMENT, STATUTS_DEMANDE } from '@/lib/constants';
 import StatsCards from '@/components/super-admin/StatsCards';
 
@@ -207,6 +208,7 @@ export default function SuperAdminDashboard() {
   if (isLoading) return <PageSkeleton />;
 
   return (
+    <ErrorBoundary>
     <div className="space-y-6">
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -223,6 +225,7 @@ export default function SuperAdminDashboard() {
           size="sm"
           onClick={fetchStats}
           className="gap-2"
+          aria-label="Actualiser les statistiques"
         >
           <RefreshCw className="size-4" />
           Actualiser
@@ -458,5 +461,6 @@ export default function SuperAdminDashboard() {
         </CardContent>
       </Card>
     </div>
+    </ErrorBoundary>
   );
 }

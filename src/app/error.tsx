@@ -24,7 +24,7 @@ export default function ErrorPage({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -37,7 +37,7 @@ export default function ErrorPage({
             <div className="w-10 h-10 rounded-xl bg-[#1B4332] flex items-center justify-center">
               <Building2 className="w-5.5 h-5.5 text-white" />
             </div>
-            <span className="text-xl font-bold text-[#0A0A0A]">
+            <span className="text-xl font-bold text-foreground">
               OGOUTEL<span className="text-[#D4AF37]">_Prestige</span>
             </span>
           </div>
@@ -50,25 +50,25 @@ export default function ErrorPage({
           transition={{ duration: 0.4, delay: 0.1 }}
           className="mb-6"
         >
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-500/10">
             <AlertTriangle className="h-10 w-10 text-red-500" />
           </div>
         </motion.div>
 
         {/* Titre */}
-        <h1 className="mb-3 text-2xl font-bold text-[#0A0A0A]">
+        <h1 className="mb-3 text-2xl font-bold text-foreground">
           Une erreur est survenue
         </h1>
 
         {/* Description */}
-        <p className="mb-2 text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
+        <p className="mb-2 text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
           Une erreur inattendue s&apos;est produite lors du chargement de cette page.
           Nos équipes ont été notifiées.
         </p>
 
         {/* Détail technique (mode dev) */}
         {process.env.NODE_ENV === 'development' && error.message && (
-          <div className="mx-auto mb-6 max-w-sm rounded-lg border border-red-200 bg-red-50 p-3 text-left">
+          <div className="mx-auto mb-6 max-w-sm rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-left">
             <p className="text-xs font-mono text-red-600 break-all">
               {error.message}
             </p>
@@ -99,8 +99,8 @@ export default function ErrorPage({
         </div>
 
         {/* Support */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-400">
+        <div className="mt-8 pt-6 border-t border-border">
+          <p className="text-xs text-muted-foreground">
             Le problème persiste ?{' '}
             <a
               href="https://wa.me/2250576103277?text=Bonjour, je rencontre une erreur sur OGOUTEL_Prestige."

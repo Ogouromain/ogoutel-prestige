@@ -127,18 +127,18 @@ function SidebarNavItem({
       onClick={handleClick}
       disabled={item.disabled}
       className={cn(
-        'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-        'hover:bg-gray-100',
+        'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 min-h-[44px]',
+        'hover:bg-muted',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/50',
         'disabled:cursor-not-allowed disabled:opacity-50',
         isActive
           ? 'border-l-[3px] border-l-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]'
-          : 'border-l-[3px] border-l-transparent text-gray-600',
+          : 'border-l-[3px] border-l-transparent text-muted-foreground',
         isCollapsed && 'justify-center px-2'
       )}
       title={isCollapsed ? item.label : undefined}
     >
-      <span className={cn('shrink-0', isActive ? 'text-[#D4AF37]' : 'text-gray-500 group-hover:text-gray-700')}>
+      <span className={cn('shrink-0', isActive ? 'text-[#D4AF37]' : 'text-muted-foreground group-hover:text-foreground')}>
         {item.icon}
       </span>
       <AnimatePresence mode="wait">
@@ -202,7 +202,7 @@ function LogoSection({
               </>
             ) : (
               <>
-                <span className="whitespace-nowrap text-lg font-bold text-[#1B4332]">
+                <span className="whitespace-nowrap text-lg font-bold text-foreground">
                   {hotelName || 'Mon Hôtel'}
                 </span>
                 {plan && planColors && (
@@ -241,14 +241,15 @@ function MobileSidebar({
         <Button
           variant="ghost"
           size="icon"
-          className="fixed left-4 top-4 z-40 md:hidden"
+          className="fixed left-4 top-4 z-40 md:hidden min-h-[44px] min-w-[44px]"
+          aria-label="Ouvrir le menu"
         >
           <Menu className="size-5" />
           <span className="sr-only">Menu de navigation</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
-        <SheetHeader className="border-b border-gray-100 px-4 py-0">
+      <SheetContent side="left" className="w-72 p-0 bg-card">
+        <SheetHeader className="border-b border-border px-4 py-0">
           <SheetTitle className="sr-only">Navigation Admin Hôtel</SheetTitle>
         </SheetHeader>
         <div className="py-2">
@@ -298,7 +299,8 @@ function LogoutButton() {
   return (
     <button
       onClick={handleLogout}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600"
+      aria-label="Se déconnecter"
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-600 min-h-[44px]"
     >
       <LogOut className="size-5" />
       <span>Déconnexion</span>
@@ -325,7 +327,7 @@ function DesktopSidebar({
       initial={false}
       animate={{ width: isCollapsed ? 80 : 256 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-gray-200 bg-white md:flex"
+      className="fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-border bg-card sidebar-bg-white md:flex"
     >
       <LogoSection isCollapsed={isCollapsed} hotelName={hotelName} plan={plan} isLoading={isLoading} />
 
@@ -357,8 +359,9 @@ function DesktopSidebar({
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed((prev) => !prev)}
-          className="size-8 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          className="min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           title={isCollapsed ? 'Développer le menu' : 'Réduire le menu'}
+          aria-label={isCollapsed ? 'Développer le menu' : 'Réduire le menu'}
         >
           {isCollapsed ? (
             <ChevronRight className="size-4" />

@@ -127,7 +127,52 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-[#F8F9FA] text-foreground;
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ─── Mode sombre : sidebar et dashboard ────────────────────────────────────── */
+.dark .sidebar-bg-white {
+  background-color: var(--sidebar) !important;
+  border-color: var(--sidebar-border) !important;
+}
+
+.dark .text-soft-black {
+  color: var(--foreground) !important;
+}
+
+.dark .bg-page {
+  background-color: var(--background) !important;
+}
+
+/* ─── Impression (print) ───────────────────────────────────────────────────── */
+@media print {
+  /* Masquer les éléments non-imprimables */
+  .no-print,
+  nav,
+  .sheet-overlay,
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  /* Réinitialiser les couleurs pour l'impression */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Supprimer les ombres et bordures décoratives */
+  * {
+    box-shadow: none !important;
+    border-color: #ccc !important;
+  }
+
+  /* Forcer le fond blanc sur les cartes */
+  .print-receipt-checkin,
+  .print-receipt-payment,
+  .print-daily-report {
+    background: white !important;
+    color: black !important;
   }
 }
 

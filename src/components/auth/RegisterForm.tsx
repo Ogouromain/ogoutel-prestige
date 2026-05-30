@@ -467,12 +467,12 @@ export function RegisterForm() {
                           {...codeForm.register('code')}
                         />
                         {codeForm.formState.errors.code && (
-                          <p className="text-sm text-red-500">
+                          <p className="text-sm text-red-500" role="alert">
                             {codeForm.formState.errors.code.message}
                           </p>
                         )}
                         {codeError && !codeForm.formState.errors.code && (
-                          <p className="text-sm text-red-500">{codeError}</p>
+                          <p className="text-sm text-red-500" role="alert">{codeError}</p>
                         )}
                       </div>
 
@@ -617,7 +617,7 @@ export function RegisterForm() {
                             {...registerForm.register('prenom')}
                           />
                           {registerForm.formState.errors.prenom && (
-                            <p className="text-xs text-red-500">{registerForm.formState.errors.prenom.message}</p>
+                            <p className="text-xs text-red-500" role="alert">{registerForm.formState.errors.prenom.message}</p>
                           )}
                         </div>
                         <div className="space-y-1.5">
@@ -633,7 +633,7 @@ export function RegisterForm() {
                             {...registerForm.register('nom')}
                           />
                           {registerForm.formState.errors.nom && (
-                            <p className="text-xs text-red-500">{registerForm.formState.errors.nom.message}</p>
+                            <p className="text-xs text-red-500" role="alert">{registerForm.formState.errors.nom.message}</p>
                           )}
                         </div>
                       </div>
@@ -654,7 +654,7 @@ export function RegisterForm() {
                             {...registerForm.register('email')}
                           />
                           {registerForm.formState.errors.email && (
-                            <p className="text-xs text-red-500">{registerForm.formState.errors.email.message}</p>
+                            <p className="text-xs text-red-500" role="alert">{registerForm.formState.errors.email.message}</p>
                           )}
                         </div>
                         <div className="space-y-1.5">
@@ -671,7 +671,7 @@ export function RegisterForm() {
                             {...registerForm.register('telephone')}
                           />
                           {registerForm.formState.errors.telephone && (
-                            <p className="text-xs text-red-500">{registerForm.formState.errors.telephone.message}</p>
+                            <p className="text-xs text-red-500" role="alert">{registerForm.formState.errors.telephone.message}</p>
                           )}
                         </div>
                       </div>
@@ -697,12 +697,13 @@ export function RegisterForm() {
                               onClick={() => setShowPassword(!showPassword)}
                               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                               tabIndex={-1}
+                              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                             >
                               {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
                           </div>
                           {registerForm.formState.errors.password && (
-                            <p className="text-xs text-red-500">{registerForm.formState.errors.password.message}</p>
+                            <p className="text-xs text-red-500" role="alert">{registerForm.formState.errors.password.message}</p>
                           )}
                         </div>
                         <div className="space-y-1.5">
@@ -724,12 +725,13 @@ export function RegisterForm() {
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                               tabIndex={-1}
+                              aria-label={showConfirmPassword ? 'Masquer la confirmation' : 'Afficher la confirmation'}
                             >
                               {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
                           </div>
                           {registerForm.formState.errors.confirm_password && (
-                            <p className="text-xs text-red-500">
+                            <p className="text-xs text-red-500" role="alert">
                               {registerForm.formState.errors.confirm_password.message}
                             </p>
                           )}
@@ -749,7 +751,7 @@ export function RegisterForm() {
                           {...registerForm.register('nom_hotel')}
                         />
                         {registerForm.formState.errors.nom_hotel && (
-                          <p className="text-xs text-red-500">{registerForm.formState.errors.nom_hotel.message}</p>
+                          <p className="text-xs text-red-500" role="alert">{registerForm.formState.errors.nom_hotel.message}</p>
                         )}
                       </div>
 

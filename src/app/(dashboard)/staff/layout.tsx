@@ -12,7 +12,7 @@ export default function StaffLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-[#F8F9FA]">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar fixe — sur mobile c'est un Sheet overlay */}
       <StaffSidebar />
 

@@ -380,3 +380,107 @@ Stage Summary:
   7. Analytics: 4 charts (bar, pie, horizontal bar, area) + top hotels table
   8. Global Search: Ctrl+K palette searching clients, rooms, reservations
   9. Settings: Dark/light mode toggle in dashboard header
+
+---
+Task ID: landing-production-optimization
+Agent: Main Agent
+Task: Landing page production optimization — lazy loading, sticky footer, print classes
+
+Work Log:
+- Read existing landing page files: page.tsx, layout.tsx, Navbar.tsx, Footer.tsx, HeroSection.tsx, FeaturesSection.tsx, ProblemsSection.tsx, TestimonialsSection.tsx, PricingSection.tsx, ContactFormSection.tsx
+- Read existing skeleton UI component (shadcn/ui Skeleton) and SectionLoading shared component
+- Verified root layout already has `min-h-screen flex flex-col` wrapper for sticky footer pattern
+- Created 3 skeleton loading components matching section visual structure:
+  - `src/components/landing/TestimonialsSkeleton.tsx` — badge + title + 3-column card grid with avatar/stars/text skeletons
+  - `src/components/landing/PricingSkeleton.tsx` — badge + title + toggle + 3-column card grid with badge/price/features/button skeletons (middle card scaled like live version)
+  - `src/components/landing/ContactFormSkeleton.tsx` — title + 3/2 grid with form fields skeleton + contact card skeleton
+- Updated `src/components/landing/Navbar.tsx` — added `no-print` class to `<header>` element
+- Updated `src/components/landing/Footer.tsx` — added `no-print` class to `<footer>` element
+- Updated `src/app/(public)/page.tsx`:
+  - Converted to server component (no 'use client')
+  - Regular imports for above-fold: Navbar, HeroSection, ProblemsSection, FeaturesSection, Footer
+  - `next/dynamic` imports for below-fold: TestimonialsSection, PricingSection, ContactFormSection
+  - Each dynamic import uses named export via `.then(m => m.ComponentName)` with custom skeleton as loading component
+  - No `ssr: false` — all components are SSR-safe (browser APIs in useEffect/event handlers only)
+  - Added `flex-1` to `<main>` element for sticky footer behavior within root layout's flex column
+- ESLint: 0 errors, 1 pre-existing warning (TanStack Table — unchanged)
+- Dev server: compiling successfully, GET / 200
+
+Stage Summary:
+- 5 files created/updated (3 new skeleton components + 2 modified landing components + 1 page)
+- Below-fold sections lazy-loaded: TestimonialsSection, PricingSection, ContactFormSection
+- Above-fold sections remain synchronous: Navbar, HeroSection, ProblemsSection, FeaturesSection, Footer
+- Sticky footer: `<main className="flex-1">` within root layout's `min-h-screen flex flex-col`
+- Print optimization: Navbar and Footer have `no-print` class (leveraging existing @media print CSS in globals.css)
+- Zero visual changes — only loading performance and print behavior improved
+- All text remains in French
+---
+Task ID: sidebar-darkmode-a11y
+Agent: Main Developer
+Task: Optimize sidebar components and auth pages for production — dark mode, accessibility, touch targets
+
+Work Log:
+
+## Changes Made
+
+### 1. Sidebars — Dark Mode Support
+- **AdminSidebar.tsx**: DesktopSidebar `bg-white` → `bg-card sidebar-bg-white`, `border-gray-200` → `border-border`. SheetContent added `bg-card`. Logo text `text-[#1B4332]` → `text-foreground`. Nav items `hover:bg-gray-100` → `hover:bg-muted`, `text-gray-600` → `text-muted-foreground`. Collapse button `size-8` → `min-h-[44px] min-w-[44px]`, `hover:bg-gray-100` → `hover:bg-muted`. Logout button `text-gray-600` → `text-muted-foreground`, `hover:bg-red-50` → `hover:bg-red-500/10`.
+- **StaffSidebar.tsx**: Same pattern of dark mode class replacements. `hover:bg-emerald-50` → `hover:bg-emerald-500/10`, `bg-gray-50` → `bg-muted`, `border-emerald-200 bg-emerald-50` → `border-emerald-500/30 bg-emerald-500/10`.
+- **SuperAdminSidebar.tsx**: Same pattern as AdminSidebar.
+
+### 2. Auth Forms — Accessibility
+- **LoginForm.tsx**: Added `role="alert"` to all error message `<p>` elements (email, password).
+- **RegisterForm.tsx**: Added `role="alert"` to all 8 error message elements. Added `aria-label` to password toggle buttons (`Afficher/Masquer le mot de passe`, `Afficher/Masquer la confirmation`). All Labels already had `htmlFor` and all Inputs had `id`. Placeholders already in French.
+
+### 3. Auth Layout — Dark Mode
+- **(auth)/layout.tsx**: Added `bg-background text-foreground` to root wrapper.
+
+### 4. Error/Not-Found Pages — Dark Mode
+- **error.tsx**: `bg-[#F8F9FA]` → `bg-background`, `text-[#0A0A0A]` → `text-foreground`, `bg-red-100` → `bg-red-500/10`, `text-gray-500` → `text-muted-foreground`, `border-gray-200` → `border-border`, `bg-red-50` → `bg-red-500/10`, `text-gray-400` → `text-muted-foreground`.
+- **not-found.tsx**: Same pattern. `text-gray-100` → `text-muted-foreground/20`.
+- **loading.tsx**: `bg-[#F8F9FA]` → `bg-background`.
+
+### 5. Aria-Labels on Icon-Only Buttons
+- All 3 sidebars: Mobile menu trigger → `aria-label="Ouvrir le menu"`. Collapse/expand button → `aria-label={isCollapsed ? 'Développer le menu' : 'Réduire le menu'}`. Logout button → `aria-label="Se déconnecter"`.
+
+### 6. DashboardHeader — Dark Mode
+- Title `text-[#0A0A0A]` → `text-foreground`. Search button `text-gray-500` → `text-muted-foreground`. Kbd `border-gray-200 bg-gray-50` → `border-border bg-muted`, `text-gray-400` → `text-muted-foreground`.
+
+### 7. Touch-Friendly Targets (44px)
+- All sidebar nav items: added `min-h-[44px]`.
+- All collapse buttons: `size-8` → `min-h-[44px] min-w-[44px]`.
+- All mobile menu triggers: added `min-h-[44px] min-w-[44px]`.
+- All logout buttons: added `min-h-[44px]`.
+
+### Lint Results
+- 0 errors, 1 pre-existing warning (DataTable.tsx TanStack Table incompatible-library).
+- All compiles successful.
+---
+Task ID: production-final-optimization
+Agent: Main Agent
+Task: Final production optimization — ThemeProvider, dark mode CSS, ErrorBoundary, hooks, cross-origin fix
+
+Work Log:
+- Added `preview-chat-*.space-z.ai` to `allowedDevOrigins` in next.config.ts (fixes cross-origin warning)
+- Added `ThemeProvider` from `next-themes` to root layout.tsx with `attribute="class"`, `defaultTheme="light"`, `enableSystem={false}`
+- Updated body class: removed hardcoded `style={{ backgroundColor: "#F8F9FA" }}`, added `bg-background text-foreground transition-colors duration-200`
+- Updated root wrapper: `bg-[#F8F9FA]` → `bg-background` for theme-aware background
+- Updated 3 dashboard layouts (admin, staff, super-admin): `bg-[#F8F9FA]` → `bg-background`
+- Updated globals.css body rule: `bg-[#F8F9FA]` → `bg-background text-foreground`
+- Added dark mode CSS utility classes in globals.css: `.dark .sidebar-bg-white`, `.dark .text-soft-black`, `.dark .bg-page`
+- Added comprehensive `@media print` CSS: hides `.no-print`, `nav`, dialogs; resets colors; removes shadows; forces white background on print receipts
+- Created `src/hooks/use-fetch-with-retry.ts` — Custom hook with exponential backoff retry, in-memory cache, abort controller cleanup, French error messages, configurable max retries/delays/cache duration
+- Added `ErrorBoundary` wrapper to 3 main dashboard pages:
+  - `src/app/(dashboard)/admin/page.tsx` — wrapped with `<ErrorBoundary>`, added `aria-label="Actualiser les statistiques"` to refresh button
+  - `src/app/(dashboard)/super-admin/page.tsx` — wrapped with `<ErrorBoundary>`, added `aria-label="Actualiser les statistiques"` to refresh button
+  - `src/app/(dashboard)/staff/page.tsx` — wrapped with `<ErrorBoundary>`, added `aria-label="Actualiser le tableau de bord"` to refresh button
+
+Stage Summary:
+- 6 files modified, 1 file created
+- ESLint: 0 errors (1 pre-existing TanStack Table warning)
+- Dev server: compiling successfully, all pages serve 200
+- ThemeProvider enables dark/light mode toggle via DashboardHeader
+- ErrorBoundary protects all 3 main dashboard pages from render errors
+- useFetchWithRetry hook available for future data fetching with auto-retry
+- Print CSS comprehensive: nav/dialogs hidden, colors reset, receipts styled
+- Cross-origin warning resolved with wildcard preview-chat domain pattern

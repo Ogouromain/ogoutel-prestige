@@ -5,6 +5,7 @@ import { RefreshCw, LogIn, LogOut, BedDouble, Clock, Activity } from 'lucide-rea
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -179,6 +180,7 @@ export default function StaffDashboardPage() {
   const staffFirstName = data?.staff_info?.prenom || 'Réceptionniste';
 
   return (
+    <ErrorBoundary>
     <div className="space-y-6">
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -195,6 +197,7 @@ export default function StaffDashboardPage() {
           size="sm"
           onClick={fetchData}
           className="gap-2"
+          aria-label="Actualiser le tableau de bord"
         >
           <RefreshCw className="size-4" />
           Actualiser
@@ -349,5 +352,6 @@ export default function StaffDashboardPage() {
         </Card>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

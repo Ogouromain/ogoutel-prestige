@@ -93,12 +93,12 @@ function SidebarNavItem({
     <button
       onClick={handleClick}
       className={cn(
-        'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-        'hover:bg-emerald-50',
+        'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 min-h-[44px]',
+        'hover:bg-emerald-500/10',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50',
         isActive
-          ? 'border-l-[3px] border-l-emerald-600 bg-emerald-50 text-emerald-700'
-          : 'border-l-[3px] border-l-transparent text-gray-600',
+          ? 'border-l-[3px] border-l-emerald-600 bg-emerald-500/10 text-emerald-700'
+          : 'border-l-[3px] border-l-transparent text-muted-foreground',
         isCollapsed && 'justify-center px-2'
       )}
       title={isCollapsed ? item.label : undefined}
@@ -108,7 +108,7 @@ function SidebarNavItem({
           'shrink-0',
           isActive
             ? 'text-emerald-600'
-            : 'text-gray-400 group-hover:text-emerald-600'
+            : 'text-muted-foreground group-hover:text-emerald-600'
         )}
       >
         {item.icon}
@@ -172,10 +172,10 @@ function LogoSection({
                 </>
               ) : (
                 <>
-                  <span className="whitespace-nowrap text-lg font-bold text-[#1B4332]">
+                  <span className="whitespace-nowrap text-lg font-bold text-foreground">
                     {hotelName || 'OGOUTEL Prestige'}
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     Espace Réception
                   </span>
                 </>
@@ -198,7 +198,7 @@ function LogoSection({
             {isLoading ? (
               <Skeleton className="h-8 w-full rounded-lg" />
             ) : (
-              <div className="flex w-full items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
+              <div className="flex w-full items-center gap-2 rounded-lg bg-muted px-3 py-2">
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">
                   {staffName
                     ? staffName
@@ -210,12 +210,12 @@ function LogoSection({
                     : 'ST'}
                 </div>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="truncate text-sm font-medium text-gray-800">
+                  <span className="truncate text-sm font-medium text-foreground">
                     {staffName || 'Réceptionniste'}
                   </span>
                   <Badge
                     variant="outline"
-                    className="w-fit border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700 px-1.5 py-0"
+                    className="w-fit border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-700 px-1.5 py-0"
                   >
                     {staffRole === 'gerant' ? 'Gérant' : 'Réceptionniste'}
                   </Badge>
@@ -251,14 +251,15 @@ function MobileSidebar({
         <Button
           variant="ghost"
           size="icon"
-          className="fixed left-4 top-4 z-40 md:hidden"
+          className="fixed left-4 top-4 z-40 md:hidden min-h-[44px] min-w-[44px]"
+          aria-label="Ouvrir le menu"
         >
           <Menu className="size-5" />
           <span className="sr-only">Menu de navigation</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
-        <SheetHeader className="border-b border-gray-100 px-4 py-0">
+      <SheetContent side="left" className="w-72 p-0 bg-card">
+        <SheetHeader className="border-b border-border px-4 py-0">
           <SheetTitle className="sr-only">
             Navigation Staff Hôtel
           </SheetTitle>
@@ -316,7 +317,8 @@ function LogoutButton() {
   return (
     <button
       onClick={handleLogout}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600"
+      aria-label="Se déconnecter"
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-600 min-h-[44px]"
     >
       <DoorOpen className="size-5" />
       <span>Déconnexion</span>
@@ -345,7 +347,7 @@ function DesktopSidebar({
       initial={false}
       animate={{ width: isCollapsed ? 80 : 256 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-gray-200 bg-white md:flex"
+      className="fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-border bg-card sidebar-bg-white md:flex"
     >
       <LogoSection
         isCollapsed={isCollapsed}
@@ -383,8 +385,9 @@ function DesktopSidebar({
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed((prev) => !prev)}
-          className="size-8 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          className="min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           title={isCollapsed ? 'Développer le menu' : 'Réduire le menu'}
+          aria-label={isCollapsed ? 'Développer le menu' : 'Réduire le menu'}
         >
           {isCollapsed ? (
             <ChevronRight className="size-4" />

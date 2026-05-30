@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -26,7 +26,7 @@ export default function NotFound() {
             <div className="w-10 h-10 rounded-xl bg-[#1B4332] flex items-center justify-center">
               <Building2 className="w-5.5 h-5.5 text-white" />
             </div>
-            <span className="text-xl font-bold text-[#0A0A0A]">
+            <span className="text-xl font-bold text-foreground">
               OGOUTEL<span className="text-[#D4AF37]">_Prestige</span>
             </span>
           </div>
@@ -39,7 +39,7 @@ export default function NotFound() {
           transition={{ duration: 0.4, delay: 0.1 }}
         >
           <div className="relative mb-8">
-            <span className="text-[120px] sm:text-[150px] font-bold leading-none text-gray-100 select-none">
+            <span className="text-[120px] sm:text-[150px] font-bold leading-none text-muted-foreground/20 select-none">
               404
             </span>
             <div className="absolute inset-0 flex items-center justify-center">
@@ -51,12 +51,12 @@ export default function NotFound() {
         </motion.div>
 
         {/* Titre */}
-        <h1 className="mb-3 text-2xl font-bold text-[#0A0A0A]">
+        <h1 className="mb-3 text-2xl font-bold text-foreground">
           Page introuvable
         </h1>
 
         {/* Description */}
-        <p className="mb-8 text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
+        <p className="mb-8 text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
           La page que vous recherchez n&apos;existe pas ou a été déplacée.
           Vérifiez l&apos;URL ou retournez à votre espace.
         </p>

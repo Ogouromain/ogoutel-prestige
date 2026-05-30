@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "http://localhost:81",
     "https://space-z.ai",
+    "https://preview-chat-*.space-z.ai",
   ],
 
   // ─── TypeScript ────────────────────────────────────────────

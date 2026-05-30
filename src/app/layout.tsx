@@ -8,6 +8,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
 // ─── Polices Google Fonts ────────────────────────────────────────────────────
@@ -143,14 +144,21 @@ export default function RootLayout({ children }: RootLayoutProps) {
         className={`
           ${inter.variable}
           ${playfairDisplay.variable}
-          font-sans antialiased
+          font-sans antialiased bg-background text-foreground transition-colors duration-200
         `}
-        style={{ backgroundColor: "#F8F9FA" }}
       >
-        {/* ─── Contenu principal de la page ─── */}
-        <div className="min-h-screen flex flex-col bg-[#F8F9FA]">
-          {children}
-        </div>
+        {/* ─── ThemeProvider (dark/light mode) ─── */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange={false}
+        >
+          {/* ─── Contenu principal de la page ─── */}
+          <div className="min-h-screen flex flex-col bg-background">
+            {children}
+          </div>
+        </ThemeProvider>
 
         {/* ─── Notifications react-hot-toast ─── */}
         <Toaster

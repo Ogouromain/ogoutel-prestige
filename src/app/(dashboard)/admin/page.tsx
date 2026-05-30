@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Card, CardContent } from '@/components/ui/card';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import DashboardStats from '@/components/admin/DashboardStats';
@@ -90,6 +91,7 @@ export default function AdminDashboardPage() {
   }, [fetchData]);
 
   return (
+    <ErrorBoundary>
     <div className="space-y-6">
       {/* ── Header ────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -106,6 +108,7 @@ export default function AdminDashboardPage() {
           size="sm"
           onClick={fetchData}
           className="gap-2"
+          aria-label="Actualiser les statistiques"
         >
           <RefreshCw className="size-4" />
           Actualiser
@@ -125,5 +128,6 @@ export default function AdminDashboardPage() {
         </Card>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
