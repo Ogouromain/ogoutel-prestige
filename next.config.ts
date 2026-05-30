@@ -15,13 +15,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // ─── Cross-Origin pour le Preview Panel ────────────────
-  // Autorise le panneau de prévisualisation (iframe externe)
-  // à charger les chunks JS/CSS depuis le dev server
-  allowedDevOrigins: [
-    "http://localhost:81",
-    "https://space-z.ai",
-    "https://preview-chat-*.space-z.ai",
-  ],
+  // Le panneau de prévisualisation tourne sur un domaine dynamique
+  // (preview-chat-<uuid>.space-z.ai). Next.js 16 n'utilise PAS
+  // les wildcards — on supprime allowedDevOrigins pour autoriser
+  // toutes les origines en mode développement.
+  // allowedDevOrigins: [], // laisser vide = toutes origines autorisées
 
   // ─── TypeScript ────────────────────────────────────────────
   typescript: {

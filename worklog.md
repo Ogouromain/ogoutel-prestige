@@ -508,3 +508,24 @@ Stage Summary:
   - Converted `subscriptions_by_plan` from object to array format
   - Updated DEMO_STATS to match the new camelCase format
 - **Verified**: API now returns correct format, confirmed via curl test
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix preview panel not displaying (blank/white screen)
+
+Work Log:
+- Diagnosed that the dev server was returning HTTP 200 but the preview panel showed blank
+- Found CORS warning: "Blocked cross-origin request from preview-chat-<uuid>.space-z.ai to /_next/* resource"
+- Root cause 1: `allowedDevOrigins` in next.config.ts used wildcard `"https://preview-chat-*.space-z.ai"` but Next.js 16 uses exact string matching, not glob patterns
+- Root cause 2: `middleware.ts` was causing the dev server to CRASH on every incoming request (process starts, binds port, but dies immediately on first request)
+- Fix 1: Removed `allowedDevOrigins` from next.config.ts — without this config, Next.js allows all origins in dev mode
+- Fix 2: Migrated `src/middleware.ts` → `src/proxy.ts` for Next.js 16 compatibility (middleware convention is deprecated in Next.js 16)
+- Changed export from `export async function middleware()` to `export async function proxy()`
+- Deleted old `src/middleware.ts` file
+- Verified: server returns HTTP 200, stays alive across multiple requests, no CORS warnings
+
+Stage Summary:
+- **Root Cause**: Two issues: (1) `allowedDevOrigins` wildcards not supported + (2) `middleware.ts` crashes Next.js 16 dev server
+- **Fix**: Removed `allowedDevOrigins` from config + migrated to `proxy.ts` convention
+- **Key Files Changed**: `next.config.ts` (removed allowedDevOrigins), `src/proxy.ts` (new, replaces middleware.ts)
+- **Verified**: `bun run dev` works, HTTP 200, server stays alive, no CORS warnings

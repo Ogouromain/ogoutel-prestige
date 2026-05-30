@@ -1,5 +1,5 @@
 // ============================================
-// OGOUTEL_Prestige - Middleware racine Next.js
+// OGOUTEL_Prestige - Proxy racine Next.js 16
 //
 // Point d'entrée unique pour toutes les requêtes.
 // Délègue toute la logique à updateSession() dans
@@ -35,7 +35,7 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
