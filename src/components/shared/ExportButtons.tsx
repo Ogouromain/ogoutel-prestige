@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { FileText, Table, FileDown, Download } from 'lucide-react';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
