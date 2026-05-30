@@ -9,6 +9,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Demo data ────────────────────────────────────────────────────────────────
 
@@ -145,6 +146,15 @@ const DEMO_HOTELS = [
 
 export async function GET(request: NextRequest) {
   try {
+    // ── Auth verification (defense-in-depth) ──
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '10', 10)));
@@ -241,6 +251,15 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // ── Auth verification (defense-in-depth) ──
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     const body = await request.json();
     const { hotelId, est_actif, plan } = body;
 

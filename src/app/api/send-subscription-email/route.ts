@@ -11,6 +11,8 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { escapeHtml } from '@/lib/html-escape';
+import { checkRateLimit, getClientIp, RATE_LIMIT_FORM } from '@/lib/rate-limit';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -99,11 +101,11 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
 
               <!-- Prospect Name -->
               <h2 style="margin: 0 0 6px; color: #0A0A0A; font-size: 20px; font-weight: 700;">
-                ${data.nom_complet}
+                ${escapeHtml(data.nom_complet)}
               </h2>
               <p style="margin: 0 0 24px; color: #6B7280; font-size: 14px;">
-                Hôtel <strong style="color: #1B4332;">${data.nom_hotel}</strong>
-                ${data.ville ? ` — ${data.ville}${data.quartier ? `, ${data.quartier}` : ''}` : ''}
+                Hôtel <strong style="color: #1B4332;">${escapeHtml(data.nom_hotel)}</strong>
+                ${data.ville ? ` — ${escapeHtml(data.ville)}${data.quartier ? `, ${escapeHtml(data.quartier)}` : ''}` : ''}
               </p>
 
               <!-- Divider -->
@@ -116,7 +118,7 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
                     📧 Email
                   </td>
                   <td style="padding: 10px 0; color: #0A0A0A; font-size: 14px; font-weight: 600; border-bottom: 1px solid #F9FAFB;">
-                    <a href="mailto:${data.email}" style="color: #D4AF37; text-decoration: none;">${data.email}</a>
+                    <a href="mailto:${escapeHtml(data.email)}" style="color: #D4AF37; text-decoration: none;">${escapeHtml(data.email)}</a>
                   </td>
                 </tr>
                 <tr>
@@ -124,7 +126,7 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
                     📱 Téléphone
                   </td>
                   <td style="padding: 10px 0; color: #0A0A0A; font-size: 14px; font-weight: 600; border-bottom: 1px solid #F9FAFB;">
-                    ${data.telephone}
+                    ${escapeHtml(data.telephone)}
                   </td>
                 </tr>
                 <tr>
@@ -132,7 +134,7 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
                     🏨 Hôtel
                   </td>
                   <td style="padding: 10px 0; color: #0A0A0A; font-size: 14px; font-weight: 600; border-bottom: 1px solid #F9FAFB;">
-                    ${data.nom_hotel}
+                    ${escapeHtml(data.nom_hotel)}
                   </td>
                 </tr>
                 <tr>
@@ -140,7 +142,7 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
                     📍 Ville
                   </td>
                   <td style="padding: 10px 0; color: #0A0A0A; font-size: 14px; font-weight: 600; border-bottom: 1px solid #F9FAFB;">
-                    ${data.ville}${data.quartier ? ` — ${data.quartier}` : ''}
+                    ${escapeHtml(data.ville)}${data.quartier ? ` — ${escapeHtml(data.quartier)}` : ''}
                   </td>
                 </tr>
                 <tr>
@@ -148,7 +150,7 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
                     🛏️ Chambres
                   </td>
                   <td style="padding: 10px 0; color: #0A0A0A; font-size: 14px; font-weight: 600; border-bottom: 1px solid #F9FAFB;">
-                    ${data.nombre_chambres || 'Non précisé'}
+                    ${escapeHtml(String(data.nombre_chambres || 'Non précisé'))}
                   </td>
                 </tr>
                 <!-- Plan Row (highlighted) -->
@@ -178,7 +180,7 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
                   Message du prospect
                 </p>
                 <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.6;">
-                  ${data.message}
+                  ${escapeHtml(data.message)}
                 </p>
               </div>`
                   : ''
@@ -229,6 +231,22 @@ function buildAdminEmailHtml(data: SubscriptionBody): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Rate Limiting ──
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(clientIp, RATE_LIMIT_FORM);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Trop de requêtes. Veuillez réessayer dans quelques minutes.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
     const body: SubscriptionBody = await request.json();
 
     // ── Validation ──

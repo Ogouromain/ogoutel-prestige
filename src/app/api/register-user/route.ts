@@ -11,6 +11,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp, RATE_LIMIT_REGISTER } from '@/lib/rate-limit';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,22 @@ const PLAN_LABELS: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Rate Limiting ──
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(clientIp, RATE_LIMIT_REGISTER);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Trop de requêtes. Veuillez réessayer dans quelques minutes.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
     // ── 0. Vérifier Supabase ──
     const hasSupabase = !!(
       process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -69,7 +86,15 @@ export async function POST(request: NextRequest) {
     if (!nom || nom.trim().length < 2) errors.push('Le nom doit contenir au moins 2 caractères.');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Adresse email invalide.');
     if (!telephone || telephone.trim().length < 8) errors.push('Le numéro de téléphone est invalide.');
-    if (!password || password.length < 8) errors.push('Le mot de passe doit contenir au moins 8 caractères.');
+    if (!password || password.length < 8) {
+      errors.push('Le mot de passe doit contenir au moins 8 caractères.');
+    } else {
+      // Validation renforcée du mot de passe
+      if (!/[A-Z]/.test(password)) errors.push('Le mot de passe doit contenir au moins une majuscule.');
+      if (!/[a-z]/.test(password)) errors.push('Le mot de passe doit contenir au moins une minuscule.');
+      if (!/[0-9]/.test(password)) errors.push('Le mot de passe doit contenir au moins un chiffre.');
+      if (!/[^A-Za-z0-9]/.test(password)) errors.push('Le mot de passe doit contenir au moins un caractère spécial.');
+    }
     if (!nom_hotel || nom_hotel.trim().length < 2) errors.push('Le nom de l\'hôtel est requis.');
 
     if (errors.length > 0) {

@@ -10,6 +10,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Code generator (OGT-XXXX-XXXX) ──────────────────────────────────────────
 // Uses non-ambiguous characters (no O/0, I/1, L)
@@ -114,6 +115,15 @@ const DEMO_CODES = [
 
 export async function GET(request: NextRequest) {
   try {
+    // ── Auth verification (defense-in-depth) ──
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '10', 10)));
@@ -200,6 +210,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Auth verification (defense-in-depth) ──
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     const body = await request.json();
     const { demande_id, plan, email_destinataire, nom_hotel } = body;
 
@@ -328,6 +347,15 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // ── Auth verification (defense-in-depth) ──
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     const body = await request.json();
     const { codeId } = body;
 

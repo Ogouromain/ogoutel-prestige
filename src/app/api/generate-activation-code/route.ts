@@ -12,6 +12,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { escapeHtml } from '@/lib/html-escape';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ function buildClientActivationEmailHtml(
             <td style="background: linear-gradient(135deg, #D4AF37 0%, #1B4332 60%, #0A0A0A 100%); border-radius: 16px 16px 0 0; padding: 40px; text-align: center;">
               <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
               <h1 style="margin: 0; color: #FFFFFF; font-size: 24px; font-weight: 700;">
-                Félicitations ${clientNom.split(' ')[0]} !
+                Félicitations ${escapeHtml(clientNom.split(' ')[0])} !
               </h1>
               <p style="margin: 8px 0 0; color: rgba(255,255,255,0.85); font-size: 15px;">
                 Votre code d'activation OGOUTEL_Prestige est prêt
@@ -132,7 +133,7 @@ function buildClientActivationEmailHtml(
 
               <p style="margin: 0 0 24px; color: #374151; font-size: 15px; line-height: 1.7;">
                 Bienvenue dans la famille <strong style="color: #1B4332;">OGOUTEL_Prestige</strong> !
-                Votre hôtel <strong style="color: #0A0A0A;">${nomHotel}</strong> a été approuvé.
+                Votre hôtel <strong style="color: #0A0A0A;">${escapeHtml(nomHotel)}</strong> a été approuvé.
                 Voici votre code d'activation pour créer votre compte :
               </p>
 
@@ -176,7 +177,7 @@ function buildClientActivationEmailHtml(
                     🏨 Hôtel
                   </td>
                   <td style="padding: 12px 0; color: #0A0A0A; font-size: 14px; font-weight: 600;">
-                    ${nomHotel}
+                    ${escapeHtml(nomHotel)}
                   </td>
                 </tr>
               </table>

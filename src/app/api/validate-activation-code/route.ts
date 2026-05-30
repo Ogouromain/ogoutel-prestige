@@ -13,6 +13,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp, RATE_LIMIT_CODE } from '@/lib/rate-limit';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,22 @@ const DEMO_CODES: Record<string, { plan_id: string; plan_name: string; hotel_nam
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Rate Limiting ──
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(clientIp, RATE_LIMIT_CODE);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Trop de requêtes. Veuillez réessayer dans quelques minutes.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
     // ── 0. Vérifier Supabase ──
     const hasSupabase = !!(
       process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -202,6 +219,22 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // ── Rate Limiting ──
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(clientIp, RATE_LIMIT_CODE);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Trop de requêtes. Veuillez réessayer dans quelques minutes.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
 

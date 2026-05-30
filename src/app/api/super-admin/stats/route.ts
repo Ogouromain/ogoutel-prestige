@@ -9,6 +9,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Plan prices (FCFA) ──────────────────────────────────────────────────────
 
@@ -164,8 +165,17 @@ const DEMO_STATS = {
 
 // ─── Route Handler ──────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // ── Auth verification (defense-in-depth) ──
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     // Dynamic import — handles missing env vars gracefully
     const { createAdminClient } = await import('@/lib/supabase/server');
     const supabase = await createAdminClient();

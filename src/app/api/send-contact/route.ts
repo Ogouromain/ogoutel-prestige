@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { escapeHtml } from '@/lib/html-escape'
+import { checkRateLimit, getClientIp, RATE_LIMIT_FORM } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Rate Limiting ──
+    const clientIp = getClientIp(request)
+    const rateLimit = checkRateLimit(clientIp, RATE_LIMIT_FORM)
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Trop de requêtes. Veuillez réessayer dans quelques minutes.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      )
+    }
+
     const body = await request.json()
     const { nom_complet, email, telephone, nom_hotel, ville, quartier, nombre_chambres, plan_choisi, message } = body
 
@@ -64,15 +82,15 @@ export async function POST(request: NextRequest) {
                   <h1 style="color: white; margin: 0; font-size: 20px;">🏨 Nouvelle Demande OGOUTEL_Prestige</h1>
                 </div>
                 <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-                  <h2 style="color: #0A0A0A; margin-top: 0;">${nom_complet} — ${nom_hotel}</h2>
+                  <h2 style="color: #0A0A0A; margin-top: 0;">${escapeHtml(nom_complet)} — ${escapeHtml(nom_hotel)}</h2>
                   <table style="width: 100%; border-collapse: collapse;">
-                    <tr><td style="padding: 8px 0; color: #6B7280; width: 140px;">Email</td><td style="padding: 8px 0; font-weight: 600;">${email}</td></tr>
-                    <tr><td style="padding: 8px 0; color: #6B7280;">Téléphone</td><td style="padding: 8px 0; font-weight: 600;">${telephone}</td></tr>
-                    <tr><td style="padding: 8px 0; color: #6B7280;">Ville</td><td style="padding: 8px 0; font-weight: 600;">${ville}${quartier ? ` — ${quartier}` : ''}</td></tr>
-                    <tr><td style="padding: 8px 0; color: #6B7280;">Chambres</td><td style="padding: 8px 0; font-weight: 600;">${nombre_chambres || 'Non précisé'}</td></tr>
+                    <tr><td style="padding: 8px 0; color: #6B7280; width: 140px;">Email</td><td style="padding: 8px 0; font-weight: 600;">${escapeHtml(email)}</td></tr>
+                    <tr><td style="padding: 8px 0; color: #6B7280;">Téléphone</td><td style="padding: 8px 0; font-weight: 600;">${escapeHtml(telephone)}</td></tr>
+                    <tr><td style="padding: 8px 0; color: #6B7280;">Ville</td><td style="padding: 8px 0; font-weight: 600;">${escapeHtml(ville)}${quartier ? ` — ${escapeHtml(quartier)}` : ''}</td></tr>
+                    <tr><td style="padding: 8px 0; color: #6B7280;">Chambres</td><td style="padding: 8px 0; font-weight: 600;">${escapeHtml(String(nombre_chambres || 'Non précisé'))}</td></tr>
                     <tr><td style="padding: 8px 0; color: #6B7280;">Plan choisi</td><td style="padding: 8px 0; font-weight: 600; color: #D4AF37;">${planLabels[plan_choisi]}</td></tr>
                   </table>
-                  ${message ? `<div style="margin-top: 16px; padding: 12px; background: #F8F9FA; border-radius: 8px;"><strong>Message :</strong><br/>${message}</div>` : ''}
+                  ${message ? `<div style="margin-top: 16px; padding: 12px; background: #F8F9FA; border-radius: 8px;"><strong>Message :</strong><br/>${escapeHtml(message)}</div>` : ''}
                 </div>
               </div>
             `,
@@ -93,7 +111,7 @@ export async function POST(request: NextRequest) {
                   <h1 style="color: white; margin: 0; font-size: 20px;">OGOUTEL_Prestige</h1>
                 </div>
                 <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-                  <h2 style="color: #0A0A0A;">Bonjour ${nom_complet.split(' ')[0]} ! 👋</h2>
+                  <h2 style="color: #0A0A0A;">Bonjour ${escapeHtml(nom_complet.split(' ')[0])} ! 👋</h2>
                   <p>Merci pour votre intérêt envers <strong>OGOUTEL_Prestige</strong>. Nous avons bien reçu votre demande.</p>
                   <p>Notre équipe vous contactera dans les <strong>24 heures</strong>.</p>
                 </div>

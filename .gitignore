@@ -50,5 +50,25 @@ test
 prompt
 
 server.log
+start-dev.sh
+start-server.sh
+run-dev.sh
 # Skills directory
 /skills/
+
+# Database (SQLite)
+/db/*.db
+/db/*.db-journal
+/db/*.db-wal
+
+# Uploads
+/upload/
+
+# Agent context
+/agent-ctx/
+
+# Worklog
+/worklog.md
+
+# Download
+/download/

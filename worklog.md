@@ -587,3 +587,97 @@ Stage Summary:
 - 1 MEDIUM security misconfiguration (public route bypass)
 - 1 MEDIUM missing auth check (PUT rooms without hotel verification)
 - All fixes verified: lint passes, dev server compiles without errors
+
+---
+Task ID: 5
+Agent: rate-limiter
+Task: Add rate limiting to public API routes
+
+Work Log:
+- Added rate limiting to send-subscription-email (RATE_LIMIT_FORM)
+- Added rate limiting to send-contact (RATE_LIMIT_FORM)
+- Added rate limiting to validate-activation-code POST+GET (RATE_LIMIT_CODE)
+- Added rate limiting to register-user (RATE_LIMIT_REGISTER)
+
+Stage Summary:
+- 4 public API routes now protected against brute force
+- Rate limit headers (Retry-After, X-RateLimit-Remaining) included
+
+---
+Task ID: 3
+Agent: super-admin-auth-fixer
+Task: Add independent auth verification to super-admin API routes
+
+Work Log:
+- Read and analyzed super-admin/stats/route.ts
+- Read and analyzed super-admin/hotels/route.ts
+- Read and analyzed super-admin/codes/route.ts
+- Added verifyApiAuth() to all handlers
+
+Stage Summary:
+- 6 handlers across 3 files now have independent auth verification
+- All require 'super_admin' role
+- Defense-in-depth achieved
+---
+Task ID: 4
+Agent: xss-fixer
+Task: Fix XSS vulnerabilities in email templates
+
+Work Log:
+- Fixed send-subscription-email/route.ts: escaped all user inputs (nom_complet, email, telephone, nom_hotel, ville, quartier, nombre_chambres, message) with escapeHtml() in buildAdminEmailHtml()
+- Fixed send-contact/route.ts: escaped all user inputs in admin email HTML (nom_complet, nom_hotel, email, telephone, ville, quartier, nombre_chambres, message) and prospect confirmation email (nom_complet)
+- Fixed generate-activation-code/route.ts: escaped clientNom and nomHotel with escapeHtml() in buildClientActivationEmailHtml()
+
+Stage Summary:
+- XSS protection added to 3 email template functions
+- All user-provided strings now escaped before HTML interpolation
+
+---
+Task ID: security-audit-fixes
+Agent: Main Agent + 3 Parallel Sub-agents
+Task: Comprehensive security audit + fix all vulnerabilities in OGOUTEL_Prestige
+
+Work Log:
+- Audited 15+ critical files: supabase clients, middleware, all API routes, auth-helpers, next.config, .gitignore, package.json
+- Identified and fixed vulnerabilities across 8 categories:
+
+### FIX 1 (CRITICAL): Rate Limiting — 4 public APIs protected against brute force
+- Created `src/lib/rate-limit.ts` — In-memory rate limiter with per-IP tracking, auto-cleanup
+- Presets: RATE_LIMIT_FORM (5/5min), RATE_LIMIT_CODE (10/5min), RATE_LIMIT_REGISTER (3/15min)
+- Applied to: send-subscription-email, send-contact, validate-activation-code (POST+GET), register-user
+- Returns 429 with Retry-After and X-RateLimit-Remaining headers
+
+### FIX 2 (CRITICAL): XSS in Email Templates — 3 files fixed
+- Created `src/lib/html-escape.ts` — escapeHtml() utility
+- Fixed send-subscription-email: 8 fields escaped (nom_complet, email, telephone, nom_hotel, ville, quartier, nombre_chambres, message)
+- Fixed send-contact: 8 fields escaped in both admin and prospect emails
+- Fixed generate-activation-code: clientNom and nomHotel escaped
+
+### FIX 3 (CRITICAL): Super-Admin API Defense-in-Depth — 6 handlers hardened
+- Added verifyApiAuth(['super_admin']) to all super-admin API handlers:
+  - super-admin/stats (GET)
+  - super-admin/hotels (GET, PUT)
+  - super-admin/codes (GET, POST, DELETE)
+- Independent server-side auth check (not relying solely on middleware)
+
+### FIX 4 (MEDIUM): HTTP Security Headers
+- X-Frame-Options: ALLOWALL in dev → SAMEORIGIN in production
+- Content-Security-Policy: frame-ancestors * in dev → 'self' in production
+- Referrer-Policy: origin-when-cross-origin → strict-origin-when-cross-origin
+- Added: Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+### FIX 5 (MEDIUM): Password Validation Strengthened
+- register-user: Now requires uppercase + lowercase + digit + special character
+- Existing 8-char minimum kept
+
+### FIX 6 (MEDIUM): .gitignore Updated
+- Added: /db/*.db, /db/*.db-journal, /db/*.db-wal (SQLite files)
+- Added: /upload/, /agent-ctx/, /worklog.md, /download/
+- Added: start-dev.sh, start-server.sh, run-dev.sh
+
+Stage Summary:
+- 2 new utility files created (rate-limit.ts, html-escape.ts)
+- 10 existing files modified
+- ESLint: 0 errors, 1 pre-existing warning
+- Dev server: starts successfully without compilation errors
+- All 6 critical + 3 medium vulnerabilities addressed

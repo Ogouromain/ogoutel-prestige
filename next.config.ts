@@ -74,14 +74,17 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
-          // Autoriser l'affichage dans les iframes du Preview Panel
+          // ⚠️ X-Frame-Options et CSP sont permissifs pour le Preview Panel (sandbox iframe)
+          // En production, remplacer ALLOWALL par SAMEORIGIN et restreindre frame-ancestors
           {
             key: "X-Frame-Options",
-            value: "ALLOWALL",
+            value: process.env.NODE_ENV === 'production' ? 'SAMEORIGIN' : 'ALLOWALL',
           },
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors *",
+            value: process.env.NODE_ENV === 'production'
+              ? "frame-ancestors 'self'"
+              : 'frame-ancestors *',
           },
           {
             key: "X-Content-Type-Options",
@@ -89,7 +92,11 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Referrer-Policy",
-            value: "origin-when-cross-origin",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
           },
         ],
       },
