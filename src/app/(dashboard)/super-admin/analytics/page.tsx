@@ -1,7 +1,7 @@
 'use client';
 
 import AnalyticsCharts from '@/components/super-admin/AnalyticsCharts';
-import ExportButtons from '@/components/shared/ExportButtons';
+import { ExportButtons } from '@/components/shared/ExportButtons';
 
 // ─── Page Analyses Super Admin ──────────────────────────────────────────────
 // Route : /super-admin/analytics
