@@ -57,8 +57,12 @@ function extractAuthToken(request: Request): string | null {
   const match = cookieHeader.match(/sb-[a-z0-9]+-auth-token=([^;]+)/);
   if (match?.[1]) {
     try {
-      // The cookie is base64 encoded JSON
-      const decoded = JSON.parse(Buffer.from(match[1], "base64").toString());
+      // The cookie value has a "base64-" prefix that must be stripped
+      let tokenValue = match[1];
+      if (tokenValue.startsWith("base64-")) {
+        tokenValue = tokenValue.substring(7);
+      }
+      const decoded = JSON.parse(Buffer.from(tokenValue, "base64").toString());
       return decoded.access_token || null;
     } catch {
       return null;
