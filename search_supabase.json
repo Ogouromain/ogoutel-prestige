@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://status.supabase.com",
+    "name": "Supabase Status",
+    "snippet": "Scheduled - There will be a scheduled maintenance on 2026-06-01 from 13:00-15:00 UTC on the Shared Pooler(V1) for the eu-west-1 region. This maintenance ...",
+    "host_name": "status.supabase.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://statusgator.com/services/supabase/eu-west-1",
+    "name": "Supabase eu-west-1 status - StatusGator",
+    "snippet": "StatusGator reports that Supabase is currently experiencing a partial outage. There have been 3 user-submitted reports of outages in the past 24 hours.",
+    "host_name": "statusgator.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://status.supabase.com/history",
+    "name": "Incident History - Supabase Status",
+    "snippet": "The scheduled maintenance has been completed. May 26 , 13:00 - 15:00 UTC. Branch creation degradation. Branch creation continues to ...",
+    "host_name": "status.supabase.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://downdetector.com/status/supabase",
+    "name": "Supabase down? Current problems and outages - US - Downdetector",
+    "snippet": "User reports show no current problems with Supabase. Supabase is the Postgres development platform. Report a problem.",
+    "host_name": "downdetector.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://status.supabase.com/uptime",
+    "name": "Uptime History - Supabase Status",
+    "snippet": "Subscribe to UpdatesSubscribe. x. Get email notifications whenever Supabase creates, updates or resolves an incident. Email address: Enter OTP:.",
+    "host_name": "status.supabase.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

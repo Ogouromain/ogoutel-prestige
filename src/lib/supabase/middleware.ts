@@ -45,6 +45,7 @@ const ROUTES_API_PUBLIQUES = [
   "/api/register-user",
   "/api/webhooks",
   "/api/debug-auth",
+  "/debug",
 ];
 
 /** Association rôle → route dashboard par défaut */
