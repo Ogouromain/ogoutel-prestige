@@ -777,3 +777,29 @@ Stage Summary:
 - Dev server running correctly on port 3000
 - All critical/high issues resolved, medium issues addressed
 - Project pushed to GitHub: https://github.com/Ogouromain/ogoutel-prestige.git
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix deployment errors - "Service d'authentification indisponible" and other bugs
+
+Work Log:
+- Analyzed screenshot: identified "Service d'authentification indisponible. Contactez le support." error
+- Root cause: Environment variable names on Vercel don't match code expectations
+  - Code expects: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+  - User configured: SUPABASE_URL, ANON_KEY, SERVICE_ROLE_KEY
+- Created centralized env config (src/lib/env.ts) with fallback support for both naming conventions
+- Updated ALL 15 files referencing process.env to use the centralized config
+- Fixed LoginForm.tsx: is_active field not selected in profile query (was always undefined, allowing disabled accounts to login)
+- Fixed useAuth.ts: wrong state type for supabaseClient (Promise vs resolved value)
+- Fixed suspended/page.tsx: hardcoded contact info → uses constants from env config
+- Created missing /forgot-password page with Supabase resetPasswordForEmail flow
+- Created missing /reset-password page with password update flow
+- Ran lint: 0 errors, 1 warning (TanStack Table compat, pre-existing)
+- Committed and pushed: b1f8a46
+
+Stage Summary:
+- Main error fixed: Centralized env config accepts both SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL
+- Security fix: Disabled accounts can no longer bypass is_active check
+- 32 files changed, 1016 insertions, 89 deletions
+- Pushed to GitHub: commit b1f8a46
