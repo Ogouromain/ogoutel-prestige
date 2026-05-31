@@ -4,19 +4,28 @@
 // Single source of truth for all environment variables.
 // Supports multiple naming conventions (fallbacks) for
 // maximum compatibility across deployment platforms.
+// All values are automatically trimmed to prevent
+// invisible characters (spaces, newlines) from breaking
+// connections (common issue when pasting on Vercel).
 //
 // Usage:
-//   import { env } from '@/lib/env';
+//   import env from '@/lib/env';
 //   const url = env.SUPABASE_URL;
 // ============================================
+
+/** Helper: safely read and trim an env var */
+function envVar(name: string, fallback: string = ''): string {
+  const val = process.env[name];
+  return val ? val.trim() : fallback;
+}
 
 const env = {
   // ─── Supabase ────────────────────────────────────────────
   /** Supabase project URL (public) */
   get SUPABASE_URL(): string {
     return (
-      process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      process.env.SUPABASE_URL ||
+      envVar('NEXT_PUBLIC_SUPABASE_URL') ||
+      envVar('SUPABASE_URL') ||
       ''
     );
   },
@@ -24,8 +33,8 @@ const env = {
   /** Supabase anon/public key */
   get SUPABASE_ANON_KEY(): string {
     return (
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      process.env.ANON_KEY ||
+      envVar('NEXT_PUBLIC_SUPABASE_ANON_KEY') ||
+      envVar('ANON_KEY') ||
       ''
     );
   },
@@ -33,8 +42,8 @@ const env = {
   /** Supabase service role key (server only!) */
   get SUPABASE_SERVICE_ROLE_KEY(): string {
     return (
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.SERVICE_ROLE_KEY ||
+      envVar('SUPABASE_SERVICE_ROLE_KEY') ||
+      envVar('SERVICE_ROLE_KEY') ||
       ''
     );
   },
@@ -53,8 +62,8 @@ const env = {
   /** Application name (public) */
   get APP_NAME(): string {
     return (
-      process.env.NEXT_PUBLIC_APP_NAME ||
-      process.env.APP_NAME ||
+      envVar('NEXT_PUBLIC_APP_NAME') ||
+      envVar('APP_NAME') ||
       'OGOUTEL_Prestige'
     );
   },
@@ -62,8 +71,8 @@ const env = {
   /** Application URL */
   get APP_URL(): string {
     return (
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.APP_URL ||
+      envVar('NEXT_PUBLIC_APP_URL') ||
+      envVar('APP_URL') ||
       'http://localhost:3000'
     );
   },
@@ -71,8 +80,8 @@ const env = {
   /** Admin email for notifications */
   get ADMIN_EMAIL(): string {
     return (
-      process.env.ADMIN_EMAIL ||
-      process.env.SUPER_ADMIN_EMAIL ||
+      envVar('ADMIN_EMAIL') ||
+      envVar('SUPER_ADMIN_EMAIL') ||
       'omouitsi@gmail.com'
     );
   },
@@ -80,13 +89,13 @@ const env = {
   // ─── Email (Resend) ──────────────────────────────────────
   /** Resend API key */
   get RESEND_API_KEY(): string {
-    return process.env.RESEND_API_KEY || '';
+    return envVar('RESEND_API_KEY');
   },
 
   /** Sender email for Resend */
   get RESEND_FROM_EMAIL(): string {
     return (
-      process.env.RESEND_FROM_EMAIL ||
+      envVar('RESEND_FROM_EMAIL') ||
       'OGOUTEL_Prestige <onboarding@resend.dev>'
     );
   },
@@ -99,13 +108,13 @@ const env = {
   // ─── WhatsApp ───────────────────────────────────────────
   /** WhatsApp number (international, no +) */
   get WHATSAPP_NUMBER(): string {
-    return process.env.WHATSAPP_NUMBER || '2250576103277';
+    return envVar('WHATSAPP_NUMBER', '2250576103277');
   },
 
   /** WhatsApp direct link */
   get WHATSAPP_LINK(): string {
     return (
-      process.env.NEXT_PUBLIC_WHATSAPP_LINK ||
+      envVar('NEXT_PUBLIC_WHATSAPP_LINK') ||
       `https://wa.me/${env.WHATSAPP_NUMBER}`
     );
   },
@@ -114,7 +123,7 @@ const env = {
   /** Activation code expiration (days) */
   get CODE_ACTIVATION_EXPIRATION_DAYS(): number {
     return parseInt(
-      process.env.CODE_ACTIVATION_EXPIRATION_DAYS || '30',
+      envVar('CODE_ACTIVATION_EXPIRATION_DAYS', '30'),
       10
     );
   },
@@ -122,14 +131,14 @@ const env = {
   /** Subscription suspension delay (days after expiry) */
   get ABONNEMENT_SUSPENSION_DELAY(): number {
     return parseInt(
-      process.env.ABONNEMENT_SUSPENSION_DELAY || '7',
+      envVar('ABONNEMENT_SUSPENSION_DELAY', '7'),
       10
     );
   },
 
   // ─── Webhook ────────────────────────────────────────────
   get WEBHOOK_SECRET(): string {
-    return process.env.WEBHOOK_SECRET || '';
+    return envVar('WEBHOOK_SECRET');
   },
 
   // ─── Environment ────────────────────────────────────────
