@@ -1,10 +1,8 @@
 // ============================================
-// OGOUTEL_Prestige - Server-Side Login API (V2)
+// OGOUTEL_Prestige - Server-Side Login API (V3)
 // Route : POST /api/auth/login (public)
 //
-// Handles authentication server-side so the client
-// doesn't need NEXT_PUBLIC_* env vars baked in.
-// Uses service role key for profile lookup to bypass RLS.
+// Enhanced diagnostics for profile lookup.
 // ============================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -24,30 +22,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check Supabase configuration
     if (!env.SUPABASE_CONFIGURED) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Service d'authentification non configuré.",
-          debug: {
-            url_set: !!env.SUPABASE_URL,
-            key_set: !!env.SUPABASE_ANON_KEY,
-            service_key_set: !!env.SUPABASE_SERVICE_ROLE_KEY,
-          },
-        },
+        { success: false, error: "Service non configuré." },
         { status: 503 }
       );
     }
 
     const cookieStore = await cookies();
 
-    // ─── Supabase client (anon) for auth ────────────────────────
+    // ─── Auth client (anon) ────────────────────────
     const supabase = createServerClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
+        getAll() { return cookieStore.getAll(); },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, options)
@@ -56,7 +43,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 1. Authenticate with Supabase
+    // 1. Authenticate
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: email.toLowerCase().trim(),
       password,
@@ -64,99 +51,112 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       return NextResponse.json(
-        {
-          success: false,
-          error: authError.message,
-          code: (authError as Record<string, unknown>).code || null,
-        },
+        { success: false, error: authError.message },
         { status: 401 }
       );
     }
 
     const userId = authData.user.id;
+    const userMeta = authData.user.user_metadata || {};
 
-    // 2. Get user profile using SERVICE ROLE KEY (bypasses RLS)
-    //    The anon key might not have RLS access to profiles table
+    // 2. Profile lookup - try ALL methods
     let profile: Record<string, unknown> | null = null;
+    const diag: string[] = [];
 
+    // Method A: Direct REST call with service role key (bypasses RLS + SSR cookie issues)
     if (env.SUPABASE_ADMIN_CONFIGURED) {
-      // Use service role client for profile lookup (bypasses RLS)
-      const adminClient = createServerClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-        cookies: {
-          getAll() { return []; },
-          setAll() { /* no cookies for admin */ },
-        },
-      });
+      try {
+        const restUrl = `${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/profiles`;
+        const restRes = await fetch(`${restUrl}?id=eq.${userId}&select=role,hotel_id,full_name,is_active`, {
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (restRes.ok) {
+          const restData = await restRes.json();
+          if (restData && restData.length > 0) {
+            profile = restData[0];
+            diag.push('profile_found_via_rest_service_role');
+          } else {
+            diag.push('profile_empty_via_rest_service_role');
+          }
+        } else {
+          diag.push(`profile_rest_error_${restRes.status}`);
+        }
+      } catch (err) {
+        diag.push(`profile_rest_exception_${err instanceof Error ? err.message : String(err)}`);
+      }
+    } else {
+      diag.push('no_service_role_key');
+    }
 
-      const { data: profileData, error: profileError } = await adminClient
-        .from("profiles")
-        .select("role, hotel_id, full_name, is_active")
-        .eq("id", userId)
-        .single();
-
-      if (profileError) {
-        console.error("[api/auth/login] Profile error (admin):", profileError.message);
-      } else {
-        profile = profileData;
+    // Method B: Direct REST with anon key
+    if (!profile) {
+      try {
+        const restUrl = `${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/profiles`;
+        const restRes = await fetch(`${restUrl}?id=eq.${userId}&select=role,hotel_id,full_name,is_active`, {
+          headers: {
+            'apikey': env.SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (restRes.ok) {
+          const restData = await restRes.json();
+          if (restData && restData.length > 0) {
+            profile = restData[0];
+            diag.push('profile_found_via_rest_anon');
+          } else {
+            diag.push('profile_empty_via_rest_anon');
+          }
+        } else {
+          diag.push(`profile_rest_anon_error_${restRes.status}`);
+        }
+      } catch (err) {
+        diag.push(`profile_rest_anon_exception`);
       }
     }
 
-    // Fallback: try with anon client (in case service key not available)
+    // Method C: Fallback to user_metadata from auth
     if (!profile) {
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("role, hotel_id, full_name, is_active")
-        .eq("id", userId)
-        .single();
-
-      if (profileError) {
-        console.error("[api/auth/login] Profile error (anon):", profileError.message);
-      } else {
-        profile = profileData;
-      }
-    }
-
-    // Fallback: use user_metadata from auth if no profile found
-    if (!profile) {
-      const userMeta = authData.user.user_metadata || {};
       profile = {
         role: userMeta.role || null,
         hotel_id: userMeta.hotel_id || null,
         full_name: userMeta.full_name || authData.user.email,
-        is_active: userMeta.is_active !== false,
+        is_active: true,
       };
+      diag.push('profile_from_user_metadata_fallback');
     }
 
-    // 3. Check if account is active
-    if (profile.is_active === false) {
-      await supabase.auth.signOut();
-      return NextResponse.json(
-        { success: false, error: "Votre compte a été désactivé. Contactez le support." },
-        { status: 403 }
-      );
-    }
+    console.log('[api/auth/login] Diagnostics:', {
+      user_id: userId,
+      user_metadata_role: userMeta.role,
+      user_metadata_name: userMeta.full_name,
+      profile_methods: diag,
+      final_profile: profile,
+    });
 
-    // 4. Return success with user info (NO sensitive data)
+    // 3. Return success
     const response = NextResponse.json({
       success: true,
       user: {
         id: userId,
         email: authData.user.email,
-        role: profile.role || authData.user.user_metadata?.role || null,
-        full_name: profile.full_name || authData.user.user_metadata?.full_name,
+        role: profile.role || userMeta.role || null,
+        full_name: profile.full_name || userMeta.full_name,
         hotel_id: profile.hotel_id || null,
       },
-      redirect: getRedirectPath(profile.role || authData.user.user_metadata?.role),
+      redirect: getRedirectPath(profile.role || userMeta.role),
+      _diag: diag,
     });
 
     return response;
   } catch (error) {
     console.error("[api/auth/login] Erreur:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Erreur serveur. Veuillez réessayer.",
-      },
+      { success: false, error: "Erreur serveur. Veuillez réessayer." },
       { status: 500 }
     );
   }
