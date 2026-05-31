@@ -56,11 +56,8 @@ const FRENCH_ERRORS: Record<string, string> = {
   'Invalid email': 'Adresse email invalide.',
   'Password should be at least': 'Le mot de passe est trop court.',
   'User not found': 'Aucun compte trouvé avec cet email.',
-  'Invalid API key': 'Erreur de configuration. Contactez le support.',
-  'CORS': 'Erreur de configuration. Contactez le support.',
-  'URL': 'Erreur de configuration. Contactez le support.',
   'timeout': 'Délai d\'attente dépassé. Réessayez.',
-  'sign in': 'Erreur lors de la connexion. Réessayez.',
+  'Invalid API key': 'Clé API invalide. Vérifiez la configuration sur Vercel.',
 };
 
 function getFrenchError(message: string): string {
@@ -79,7 +76,9 @@ function getFrenchError(message: string): string {
   }
   
   // Si le message n'est pas reconnu, l'afficher directement pour debugging
-  return `Erreur : ${message}`;
+  // Tronquer si trop long pour le toast
+  const display = message.length > 120 ? message.substring(0, 120) + '…' : message;
+  return `Erreur : ${display}`;
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
