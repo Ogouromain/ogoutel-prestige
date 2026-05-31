@@ -50,16 +50,36 @@ const FRENCH_ERRORS: Record<string, string> = {
   'Invalid login credentials': 'Email ou mot de passe incorrect.',
   'Email not confirmed': 'Votre email n\'a pas été confirmé. Vérifiez votre boîte de réception.',
   'Too many requests': 'Trop de tentatives. Veuillez attendre quelques instants.',
-  'Network request failed': 'Erreur de connexion. Vérifiez votre connexion internet.',
+  'Network request failed': 'Erreur de connexion réseau. Vérifiez votre connexion internet.',
+  'Failed to fetch': 'Erreur de connexion réseau. Vérifiez votre connexion internet.',
+  'fetch failed': 'Erreur de connexion réseau. Vérifiez votre connexion internet.',
+  'Invalid email': 'Adresse email invalide.',
+  'Password should be at least': 'Le mot de passe est trop court.',
+  'User not found': 'Aucun compte trouvé avec cet email.',
+  'Invalid API key': 'Erreur de configuration. Contactez le support.',
+  'CORS': 'Erreur de configuration. Contactez le support.',
+  'URL': 'Erreur de configuration. Contactez le support.',
+  'timeout': 'Délai d\'attente dépassé. Réessayez.',
+  'sign in': 'Erreur lors de la connexion. Réessayez.',
 };
 
 function getFrenchError(message: string): string {
+  // Loguer l\'erreur brute pour le debugging (visible dans Vercel Function Logs)
+  console.error('[LoginForm] Erreur Supabase brute:', message);
+  console.error('[LoginForm] Stack:', new Error().stack);
+  
+  if (!message) {
+    return 'Erreur de connexion. Veuillez réessayer.';
+  }
+  
   for (const [key, value] of Object.entries(FRENCH_ERRORS)) {
     if (message.toLowerCase().includes(key.toLowerCase())) {
       return value;
     }
   }
-  return 'Une erreur inattendue est survenue. Veuillez réessayer.';
+  
+  // Si le message n'est pas reconnu, l'afficher directement pour debugging
+  return `Erreur : ${message}`;
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -104,6 +124,12 @@ export function LoginForm() {
       });
 
       if (authError) {
+        console.error('[LoginForm] Détails erreur auth:', JSON.stringify({
+          message: authError.message,
+          status: authError.status,
+          name: authError.name,
+          code: (authError as Record<string, unknown>).code,
+        }));
         toast.error(getFrenchError(authError.message));
         setIsLoading(false);
         return;
@@ -162,8 +188,9 @@ export function LoginForm() {
       router.push(finalRedirect);
       router.refresh();
     } catch (error) {
-      console.error('[LoginForm] Erreur:', error);
-      toast.error('Erreur de connexion. Veuillez réessayer.');
+      console.error('[LoginForm] Exception:', error);
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+      toast.error(getFrenchError(msg));
     } finally {
       setIsLoading(false);
     }
