@@ -841,3 +841,24 @@ Work Log:
 Stage Summary:
 - Root causes fixed: password reset, site_url updated, autoconfirm enabled
 - REMAINING: User must add 2 env vars on Vercel (NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY)
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix login by moving to server-side API
+
+Work Log:
+- Identified root cause: NEXT_PUBLIC_* vars are baked at BUILD time, not runtime
+- Created /api/auth/login server-side route for authentication
+- Modified LoginForm to call server API instead of client-side Supabase
+- First attempt failed: "Profil non trouvé" due to RLS blocking anon client
+- Second attempt: Used Supabase SSR client with service role - still failed (SSR cookie issue)
+- Final fix: Used direct REST API calls to Supabase with service role key for profile lookup
+- Added user_metadata fallback for maximum reliability
+- Tested and confirmed login works on Vercel production
+
+Stage Summary:
+- Login now works via POST /api/auth/login (server-side)
+- No longer depends on NEXT_PUBLIC_* vars being in client bundle
+- Profile lookup uses REST API with service role key (bypasses RLS)
+- Fallback to user_metadata if profiles table lookup fails
+- Verified: omouitsi@gmail.com / ogoutel@2025 → super_admin → /super-admin
