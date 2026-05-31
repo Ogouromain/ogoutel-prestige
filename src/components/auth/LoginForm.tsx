@@ -1,15 +1,11 @@
 'use client';
 
 // ============================================
-// OGOUTEL_Prestige - Login Form Component
-// Fichier : components/auth/LoginForm.tsx
+// OGOUTEL_Prestige - Login Form Component (V3)
 //
-// Formulaire de connexion avec :
-// - Split screen (image hôtel + branding | formulaire)
-// - Supabase Auth signInWithPassword
-// - Récupération du rôle depuis 'profiles'
-// - Redirection par rôle
-// - Messages d'erreur en français
+// Server-side login via /api/auth/login
+// No longer needs NEXT_PUBLIC_* env vars on client.
+// All Supabase operations happen server-side.
 // ============================================
 
 import { useState } from 'react';
@@ -44,39 +40,33 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-// ─── Messages d'erreur Supabase en français ───────────────────────────────────
+// ─── Messages d'erreur en français ───────────────────────────────────────────
 
 const FRENCH_ERRORS: Record<string, string> = {
   'Invalid login credentials': 'Email ou mot de passe incorrect.',
-  'Email not confirmed': 'Votre email n\'a pas été confirmé. Vérifiez votre boîte de réception.',
+  'Email not confirmed': "Votre email n'a pas été confirmé. Vérifiez votre boîte de réception.",
   'Too many requests': 'Trop de tentatives. Veuillez attendre quelques instants.',
   'Network request failed': 'Erreur de connexion réseau. Vérifiez votre connexion internet.',
   'Failed to fetch': 'Erreur de connexion réseau. Vérifiez votre connexion internet.',
   'fetch failed': 'Erreur de connexion réseau. Vérifiez votre connexion internet.',
   'Invalid email': 'Adresse email invalide.',
   'Password should be at least': 'Le mot de passe est trop court.',
-  'User not found': 'Aucun compte trouvé avec cet email.',
+  'User not found': "Aucun compte trouvé avec cet email.",
   'timeout': 'Délai d\'attente dépassé. Réessayez.',
   'Invalid API key': 'Clé API invalide. Vérifiez la configuration sur Vercel.',
 };
 
 function getFrenchError(message: string): string {
-  // Loguer l\'erreur brute pour le debugging (visible dans Vercel Function Logs)
-  console.error('[LoginForm] Erreur Supabase brute:', message);
-  console.error('[LoginForm] Stack:', new Error().stack);
-  
   if (!message) {
     return 'Erreur de connexion. Veuillez réessayer.';
   }
-  
+
   for (const [key, value] of Object.entries(FRENCH_ERRORS)) {
     if (message.toLowerCase().includes(key.toLowerCase())) {
       return value;
     }
   }
-  
-  // Si le message n'est pas reconnu, l'afficher directement pour debugging
-  // Tronquer si trop long pour le toast
+
   const display = message.length > 120 ? message.substring(0, 120) + '…' : message;
   return `Erreur : ${display}`;
 }
@@ -106,83 +96,40 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      // Dynamic import pour éviter le crash quand Supabase n'est pas configuré
-      const { createClient } = await import('@/lib/supabase/client');
-      const supabase = createClient();
-
-      if (!supabase) {
-        toast.error('Service d\'authentification indisponible. Contactez le support.');
-        setIsLoading(false);
-        return;
-      }
-
-      // 1. Connexion Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email.toLowerCase().trim(),
-        password: data.password,
+      // Use server-side login API instead of client-side Supabase
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
       });
 
-      if (authError) {
-        console.error('[LoginForm] Détails erreur auth:', JSON.stringify({
-          message: authError.message,
-          status: authError.status,
-          name: authError.name,
-          code: (authError as Record<string, unknown>).code,
-        }));
-        toast.error(getFrenchError(authError.message));
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        const errorMsg = result.error || 'Erreur de connexion.';
+        toast.error(getFrenchError(errorMsg));
         setIsLoading(false);
         return;
       }
 
-      const userId = authData.user.id;
-
-      // 2. Récupérer le profil pour obtenir le rôle
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, hotel_id, full_name, is_active')
-        .eq('id', userId)
-        .single();
-
-      if (profileError || !profile) {
-        console.error('[LoginForm] Erreur récupération profil:', profileError);
-        toast.error('Profil non trouvé. Veuillez contacter le support.');
-        await supabase.auth.signOut();
-        setIsLoading(false);
-        return;
-      }
-
-      // 3. Vérifier que le profil est actif
-      const isActive = profile.is_active !== false;
-      if (!isActive) {
-        toast.error('Votre compte a été désactivé. Contactez le support.');
-        await supabase.auth.signOut();
-        setIsLoading(false);
-        return;
-      }
-
-      // 4. Rediriger selon le rôle
-      const roleRedirects: Record<string, string> = {
-        super_admin: '/super-admin',
-        admin_hotel: '/admin',
-        gerant: '/staff',
-        receptionniste: '/staff',
-      };
-
-      const redirectPath = roleRedirects[profile.role] ?? '/';
+      // Success - determine redirect
+      const redirectPath = result.redirect || '/';
       const redirectFromUrl = searchParams.get('redirect');
 
-      // Si une redirect URL est spécifiée, valider qu'elle est bien une route interne
       let finalRedirect = redirectPath;
       if (redirectFromUrl) {
-        const isInternal = redirectFromUrl.startsWith('/') && 
-          !redirectFromUrl.startsWith('//') && 
+        const isInternal = redirectFromUrl.startsWith('/') &&
+          !redirectFromUrl.startsWith('//') &&
           !redirectFromUrl.includes(':');
         if (isInternal) {
           finalRedirect = redirectFromUrl;
         }
       }
 
-      toast.success(`Bienvenue ${profile.full_name ?? ''} !`);
+      toast.success(`Bienvenue ${result.user?.full_name || ''} !`);
 
       router.push(finalRedirect);
       router.refresh();
