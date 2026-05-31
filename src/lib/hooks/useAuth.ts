@@ -87,7 +87,7 @@ export function useAuth(): UseAuthReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [supabaseClient, setSupabaseClient] = useState<ReturnType<typeof importBrowserClient> | null>(null);
+  const [supabaseClient, setSupabaseClient] = useState<ReturnTypeOf<typeof importBrowserClient> | null>(null);
 
   // ─── Initialisation du client Supabase ─────────────────────────────────
   useEffect(() => {

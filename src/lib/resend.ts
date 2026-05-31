@@ -13,15 +13,15 @@
 // ============================================
 
 import type { Resend as ResendClient } from 'resend';
+import env from '@/lib/env';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 /** Email de l'expéditeur par défaut (nom applicatif + adresse Resend) */
-export const APP_EMAIL: string =
-  process.env.RESEND_FROM_EMAIL ?? 'OGOUTEL_Prestige <onboarding@resend.dev>';
+export const APP_EMAIL: string = env.RESEND_FROM_EMAIL;
 
 /** Email de l'administrateur principal */
-export const ADMIN_EMAIL: string = process.env.ADMIN_EMAIL ?? 'omouitsi@gmail.com';
+export const ADMIN_EMAIL: string = env.ADMIN_EMAIL;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ export async function getResendClient(): Promise<ResendClient | null> {
     return cachedClient;
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = env.RESEND_API_KEY;
 
   if (!apiKey) {
     if (process.env.NODE_ENV === 'development') {

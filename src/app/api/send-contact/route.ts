@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { escapeHtml } from '@/lib/html-escape'
 import { checkRateLimit, getClientIp, RATE_LIMIT_FORM } from '@/lib/rate-limit'
+import env from '@/lib/env'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,9 +31,9 @@ export async function POST(request: NextRequest) {
 
     // 1. Try Supabase insert (if configured)
     const hasSupabase = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
+      env.SUPABASE_URL &&
+      env.SUPABASE_ANON_KEY &&
+      env.SUPABASE_SERVICE_ROLE_KEY
     )
 
     let dbInsertOk = !hasSupabase // if not configured, consider it N/A (not a failure)
@@ -68,14 +69,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Try Resend email (if configured)
-    const hasResend = !!process.env.RESEND_API_KEY
+    const hasResend = !!env.RESEND_API_KEY
 
     let emailOk = !hasResend // if not configured, consider it N/A (not a failure)
 
     if (hasResend) {
       try {
         const { Resend } = await import('resend')
-        const resend = new Resend(process.env.RESEND_API_KEY)
+        const resend = new Resend(env.RESEND_API_KEY)
         const planLabels: Record<string, string> = { basique: 'Basique', standard: 'Standard', premium: 'Premium' }
 
         // Email à l'admin

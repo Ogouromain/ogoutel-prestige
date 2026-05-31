@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getClientIp, RATE_LIMIT_CODE } from '@/lib/rate-limit';
+import env from '@/lib/env';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -75,8 +76,8 @@ export async function POST(request: NextRequest) {
 
     // ── 0. Vérifier Supabase ──
     const hasSupabase = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      env.SUPABASE_URL &&
+      env.SUPABASE_ANON_KEY
     );
 
     // ── 0b. MODE DÉMO : codes de test quand Supabase non configuré ──
@@ -286,8 +287,8 @@ export async function GET(request: NextRequest) {
 
     // Check demo codes
     const hasSupabase = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      env.SUPABASE_URL &&
+      env.SUPABASE_ANON_KEY
     );
 
     if (!hasSupabase) {

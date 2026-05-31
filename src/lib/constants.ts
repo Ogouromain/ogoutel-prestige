@@ -3,6 +3,8 @@
 // Application SaaS de Gestion Hôtelière
 // ============================================
 
+import env from '@/lib/env';
+
 // ─── Plans d'abonnement ───────────────────────────────────────────────────────
 
 export const PLANS_ABONNEMENT = {
@@ -263,33 +265,27 @@ export function getLibelleCategorieDepense(id: string): string {
 // ─── Application ─────────────────────────────────────────────────────────────
 
 /** Nom de l'application (public) */
-export const APP_NAME: string = process.env.NEXT_PUBLIC_APP_NAME ?? "OGOUTEL_Prestige";
+export const APP_NAME: string = env.APP_NAME;
 
 /** URL de l'application */
-export const APP_URL: string = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+export const APP_URL: string = env.APP_URL;
 
 /** Email de l'administrateur */
-export const ADMIN_EMAIL: string = process.env.ADMIN_EMAIL ?? "omouitsi@gmail.com";
+export const ADMIN_EMAIL: string = env.ADMIN_EMAIL;
 
 /** Numéro WhatsApp (format international, sans +) */
-export const WHATSAPP_NUMBER: string = process.env.WHATSAPP_NUMBER ?? "2250576103277";
+export const WHATSAPP_NUMBER: string = env.WHATSAPP_NUMBER;
 
 /** Lien WhatsApp direct */
-export const WHATSAPP_LINK: string = process.env.NEXT_PUBLIC_WHATSAPP_LINK ?? `https://wa.me/${WHATSAPP_NUMBER}`;
+export const WHATSAPP_LINK: string = env.WHATSAPP_LINK;
 
 // ─── Abonnement & Sécurité ───────────────────────────────────────────────
 
 /** Durée de validité du code d'activation (en jours) */
-export const CODE_ACTIVATION_EXPIRATION_DAYS: number = parseInt(
-  process.env.CODE_ACTIVATION_EXPIRATION_DAYS ?? "30",
-  10
-);
+export const CODE_ACTIVATION_EXPIRATION_DAYS: number = env.CODE_ACTIVATION_EXPIRATION_DAYS;
 
 /** Délai avant suspension après expiration abonnement (en jours) */
-export const ABONNEMENT_SUSPENSION_DELAY: number = parseInt(
-  process.env.ABONNEMENT_SUSPENSION_DELAY ?? "7",
-  10
-);
+export const ABONNEMENT_SUSPENSION_DELAY: number = env.ABONNEMENT_SUSPENSION_DELAY;
 
 /** Format du code d'activation OGT-XXXX-XXXX */
 export const CODE_ACTIVATION_FORMAT = /^OGT-[A-Z0-9]{4}-[A-Z0-9]{4}$/;

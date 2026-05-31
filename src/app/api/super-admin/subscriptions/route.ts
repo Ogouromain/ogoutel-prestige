@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/auth-helpers';
 import { sanitizeSearchParam } from '@/lib/sanitize-search';
+import env from '@/lib/env';
 
 // ─── Allowed status transitions ──────────────────────────────────────────────
 
@@ -435,11 +436,11 @@ export async function POST(request: NextRequest) {
       .eq('id', demandeId);
 
     // Send email via Resend if configured
-    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasResend = !!env.RESEND_API_KEY;
     if (hasResend && (email_destinataire || demande.email)) {
       try {
         const { Resend } = await import('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
+        const resend = new Resend(env.RESEND_API_KEY);
 
         await resend.emails.send({
           from: 'OGOUTEL_Prestige <onboarding@resend.dev>',
@@ -455,7 +456,7 @@ export async function POST(request: NextRequest) {
               </div>
               <p>Plan : <strong>${demande.plan_choisi}</strong></p>
               <p>Expire le : <strong>${expirationDate.toLocaleDateString('fr-FR')}</strong></p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://ogoutel-prestige.com'}/register?code=${code}"
+              <a href="${env.APP_URL}/register?code=${code}"
                  style="display: inline-block; padding: 14px 32px; background: #D4AF37; color: #0A0A0A; text-decoration: none; border-radius: 10px; font-weight: 700; margin-top: 16px;">
                 Créer mon compte
               </a>

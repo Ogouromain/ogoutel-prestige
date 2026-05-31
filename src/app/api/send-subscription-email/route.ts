@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { escapeHtml } from '@/lib/html-escape';
 import { checkRateLimit, getClientIp, RATE_LIMIT_FORM } from '@/lib/rate-limit';
+import env from '@/lib/env';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ interface SubscriptionBody {
 
 const ADMIN_EMAIL = 'omouitsi@gmail.com';
 const WHATSAPP_NUMBER = '2250576103277';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ogoutel-prestige.com';
+const APP_URL = env.APP_URL;
 
 const PLAN_LABELS: Record<string, string> = {
   basique: 'Basique',
@@ -267,9 +268,9 @@ export async function POST(request: NextRequest) {
 
     // ── 1. Supabase Insert ──
     const hasSupabase = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
+      env.SUPABASE_URL &&
+      env.SUPABASE_ANON_KEY &&
+      env.SUPABASE_SERVICE_ROLE_KEY
     );
 
     let dbInsertOk = !hasSupabase; // if not configured, consider it N/A (not a failure)
@@ -309,14 +310,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 2. Resend Email ──
-    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasResend = !!env.RESEND_API_KEY;
 
     let emailOk = !hasResend; // if not configured, consider it N/A (not a failure)
 
     if (hasResend) {
       try {
         const { Resend } = await import('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
+        const resend = new Resend(env.RESEND_API_KEY);
         const planLabel = PLAN_LABELS[plan_choisi] ?? plan_choisi;
 
         const { error: resendError } = await resend.emails.send({

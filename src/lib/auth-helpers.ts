@@ -9,6 +9,7 @@
 
 import type { Profile, Hotel, RoleUtilisateur } from "@/types";
 import { PLANS_ABONNEMENT, type PlanId } from "@/lib/constants";
+import env from "@/lib/env";
 
 // ─── Types de retour ──────────────────────────────────────────────────────────
 
@@ -48,9 +49,9 @@ async function getSupabaseClient() {
   const { createClient } = await import("@supabase/ssr");
   const { cookies } = await import("next/headers");
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
+  if (!env.SUPABASE_CONFIGURED) return null;
+  const url = env.SUPABASE_URL;
+  const key = env.SUPABASE_ANON_KEY;
 
   const cookieStore = await cookies();
   return createClient(url, key, {
@@ -78,9 +79,9 @@ async function getSupabaseClient() {
 async function getAdminClient() {
   const { createClient } = await import("@supabase/ssr");
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return null;
+  if (!env.SUPABASE_ADMIN_CONFIGURED) return null;
+  const url = env.SUPABASE_URL;
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
   return createClient(url, serviceKey, {
     cookies: {

@@ -5,12 +5,10 @@
 // ============================================
 
 import { createBrowserClient } from "@supabase/ssr";
+import env from "@/lib/env";
 
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!env.SUPABASE_CONFIGURED) return null;
 
-  if (!url || !key) return null;
-
-  return createBrowserClient(url, key);
+  return createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
 }

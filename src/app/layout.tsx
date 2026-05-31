@@ -9,6 +9,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "next-themes";
+import env from "@/lib/env";
 import "./globals.css";
 
 // ─── Polices Google Fonts ────────────────────────────────────────────────────
@@ -29,8 +30,8 @@ const playfairDisplay = Playfair_Display({
 
 // ─── Métadonnées SEO ─────────────────────────────────────────────────────────
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "OGOUTEL_Prestige";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_NAME = env.APP_NAME;
+const APP_URL = env.APP_URL;
 const APP_DESCRIPTION =
   "Le SaaS N°1 de gestion hôtelière en Côte d'Ivoire. Réservations, chambres, facturation et statistiques — tout ce dont votre établissement a besoin.";
 

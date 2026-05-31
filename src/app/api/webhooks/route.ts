@@ -16,6 +16,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import env from '@/lib/env';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -163,9 +164,9 @@ export async function POST(request: NextRequest) {
 
     // ── 5. Enregistrer dans activites_log (si Supabase) ──
     const hasSupabase = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
+      env.SUPABASE_URL &&
+      env.SUPABASE_ANON_KEY &&
+      env.SUPABASE_SERVICE_ROLE_KEY
     );
 
     if (hasSupabase) {

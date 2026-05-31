@@ -114,7 +114,7 @@ export function LoginForm() {
       // 2. Récupérer le profil pour obtenir le rôle
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role, hotel_id, full_name')
+        .select('role, hotel_id, full_name, is_active')
         .eq('id', userId)
         .single();
 

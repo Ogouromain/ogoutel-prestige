@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { escapeHtml } from '@/lib/html-escape';
+import env from '@/lib/env';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ const PLAN_COLORS: Record<string, string> = {
 
 const ADMIN_EMAIL = 'omouitsi@gmail.com';
 const WHATSAPP_NUMBER = '2250576103277';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ogoutel-prestige.com';
+const APP_URL = env.APP_URL;
 const CODE_EXPIRATION_DAYS = 30;
 
 // ─── Code Generator ──────────────────────────────────────────────────────────
@@ -250,9 +251,9 @@ export async function POST(request: NextRequest) {
   try {
     // ── 0. Vérifier Supabase est configuré ──
     const hasSupabase = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
+      env.SUPABASE_URL &&
+      env.SUPABASE_ANON_KEY &&
+      env.SUPABASE_SERVICE_ROLE_KEY
     );
 
     if (!hasSupabase) {
@@ -373,12 +374,12 @@ export async function POST(request: NextRequest) {
 
     // ── 6. Envoyer l'email au client ──
     if (finalEmail) {
-      const hasResend = !!process.env.RESEND_API_KEY;
+      const hasResend = !!env.RESEND_API_KEY;
 
       if (hasResend) {
         try {
           const { Resend } = await import('resend');
-          const resend = new Resend(process.env.RESEND_API_KEY);
+          const resend = new Resend(env.RESEND_API_KEY);
 
           await resend.emails.send({
             from: 'OGOUTEL_Prestige <onboarding@resend.dev>',

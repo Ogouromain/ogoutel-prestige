@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { Building2, Mail, Phone, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ADMIN_EMAIL, WHATSAPP_NUMBER, WHATSAPP_LINK } from '@/lib/constants';
 
 export default function SuspendedPage() {
   return (
@@ -74,7 +75,7 @@ export default function SuspendedPage() {
             <div className="mb-8 space-y-3">
               {/* Email */}
               <a
-                href="mailto:omouitsi@gmail.com?subject=Renouvellement abonnement OGOUTEL_Prestige"
+                href={`mailto:${ADMIN_EMAIL}?subject=Renouvellement abonnement OGOUTEL_Prestige`}
                 className="flex items-center gap-3 rounded-lg border border-gray-100 p-3 text-left transition-all hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/5"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D4AF37]/10 flex-shrink-0">
@@ -82,13 +83,13 @@ export default function SuspendedPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-[#0A0A0A]">Email Support</p>
-                  <p className="text-xs text-gray-400">omouitsi@gmail.com</p>
+                  <p className="text-xs text-gray-400">{ADMIN_EMAIL}</p>
                 </div>
               </a>
 
               {/* WhatsApp */}
               <a
-                href="https://wa.me/2250576103277?text=Bonjour, je souhaite renouveler mon abonnement OGOUTEL_Prestige."
+                href={`${WHATSAPP_LINK}?text=Bonjour, je souhaite renouveler mon abonnement OGOUTEL_Prestige.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 rounded-lg border border-gray-100 p-3 text-left transition-all hover:border-emerald-200 hover:bg-emerald-50"
@@ -98,7 +99,7 @@ export default function SuspendedPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-[#0A0A0A]">WhatsApp</p>
-                  <p className="text-xs text-gray-400">+225 0576103277</p>
+                  <p className="text-xs text-gray-400">+{WHATSAPP_NUMBER}</p>
                 </div>
               </a>
             </div>
@@ -107,7 +108,7 @@ export default function SuspendedPage() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild className="flex-1 bg-[#1B4332] hover:bg-[#1B4332]/90 text-white h-11">
                 <a
-                  href="mailto:omouitsi@gmail.com?subject=Renouvellement abonnement OGOUTEL_Prestige"
+                  href={`mailto:${ADMIN_EMAIL}?subject=Renouvellement abonnement OGOUTEL_Prestige`}
                 >
                   <Mail className="mr-2 h-4 w-4" />
                   Contacter le support
@@ -119,7 +120,7 @@ export default function SuspendedPage() {
                 className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 h-11"
               >
                 <a
-                  href="https://wa.me/2250576103277?text=Bonjour, je souhaite renouveler mon abonnement OGOUTEL_Prestige."
+                  href={`${WHATSAPP_LINK}?text=Bonjour, je souhaite renouveler mon abonnement OGOUTEL_Prestige.`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
