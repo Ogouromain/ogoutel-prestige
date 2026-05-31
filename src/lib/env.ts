@@ -82,6 +82,7 @@ const env = {
     return (
       envVar('ADMIN_EMAIL') ||
       envVar('SUPER_ADMIN_EMAIL') ||
+      envVar('NEXT_PUBLIC_SUPER_ADMIN_EMAIL') ||
       'omouitsi@gmail.com'
     );
   },

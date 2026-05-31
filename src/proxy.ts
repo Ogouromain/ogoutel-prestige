@@ -8,11 +8,12 @@
 // PROTECTION DES ROUTES :
 //
 //   Routes publiques (sans connexion) :
-//     /, /login, /register, /forgot-password, /reset-password
+//     /, /login, /register, /forgot-password, /reset-password,
+//     /debug, /suspended
 //     /api/send-contact, /api/send-subscription-email,
 //     /api/validate-activation-code, /api/rooms, /api/bookings,
 //     /api/contact, /api/testimonials, /api/pricing,
-//     /api/register-user, /api/webhooks
+//     /api/register-user, /api/webhooks, /api/debug-auth
 //
 //   Routes protégées par rôle :
 //     /super-admin/*  → super_admin uniquement

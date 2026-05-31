@@ -30,6 +30,8 @@ const ROUTES_PUBLIQUES = [
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/debug",
+  "/suspended",
 ];
 
 /** Routes d'API accessibles sans authentification */
@@ -45,7 +47,6 @@ const ROUTES_API_PUBLIQUES = [
   "/api/register-user",
   "/api/webhooks",
   "/api/debug-auth",
-  "/debug",
 ];
 
 /** Association rôle → route dashboard par défaut */
