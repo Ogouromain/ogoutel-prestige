@@ -114,11 +114,21 @@ function extraireRole(user: {
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // ─── 0. Si Supabase n'est pas configuré, laisser passer ────────────────
+  // ─── 0. Si Supabase n'est pas configuré ──────────────────────────────
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    // En production, bloquer les routes protégées. En dev, laisser passer.
+    if (process.env.NODE_ENV === 'production') {
+      const isApi = pathname.startsWith('/api/');
+      const isProtected = getRouteProtégée(pathname) !== null;
+      if (isProtected) {
+        return isApi
+          ? NextResponse.json({ success: false, error: 'Service indisponible.' }, { status: 503 })
+          : NextResponse.redirect(new URL('/login', request.url));
+      }
+    }
     return NextResponse.next({ request });
   }
 
@@ -228,14 +238,23 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
-    // ─── Headers de sécurité ────────────────────────────────────────────
-    supabaseResponse.headers.set("x-role", role);
-    supabaseResponse.headers.set("x-user-id", user.id);
+    // ─── Headers supprimés (fuite d'info) ─────────────────────────────────
+    // Les headers x-role et x-user-id sont retirés pour éviter
+    // la fuite d'informations dans les réponses HTTP
 
     return supabaseResponse;
   } catch (error) {
-    console.error("[middleware] Erreur, mode dégradé:", error);
-    return NextResponse.next({ request });
+    console.error("[middleware] Erreur:", error);
+    // Fail-closed: redirect to login or return 401
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur de session.' },
+        { status: 401 }
+      );
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
 }
 

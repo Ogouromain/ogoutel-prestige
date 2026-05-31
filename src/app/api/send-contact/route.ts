@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     )
 
+    let dbInsertOk = !hasSupabase // if not configured, consider it N/A (not a failure)
+
     if (hasSupabase) {
       try {
         const { createAdminClient } = await import('@/lib/supabase/server')
@@ -53,9 +55,13 @@ export async function POST(request: NextRequest) {
         })
         if (dbError) {
           console.error('Erreur Supabase:', dbError)
+          dbInsertOk = false
+        } else {
+          dbInsertOk = true
         }
       } catch (dbErr) {
         console.error('Erreur connexion Supabase:', dbErr)
+        dbInsertOk = false
       }
     } else {
       console.log('[send-contact] Supabase non configuré — skip DB insert')
@@ -63,6 +69,8 @@ export async function POST(request: NextRequest) {
 
     // 2. Try Resend email (if configured)
     const hasResend = !!process.env.RESEND_API_KEY
+
+    let emailOk = !hasResend // if not configured, consider it N/A (not a failure)
 
     if (hasResend) {
       try {
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
 
         // Email à l'admin
         try {
-          await resend.emails.send({
+          const { error: adminEmailErr } = await resend.emails.send({
             from: 'OGOUTEL_Prestige <onboarding@resend.dev>',
             to: 'omouitsi@gmail.com',
             subject: `🏨 [OGOUTEL_Prestige] Nouvelle demande - ${planLabels[plan_choisi]} - ${nom_hotel}`,
@@ -95,13 +103,16 @@ export async function POST(request: NextRequest) {
               </div>
             `,
           })
+          if (adminEmailErr) {
+            console.error('Erreur envoi email admin:', adminEmailErr)
+          }
         } catch (emailErr) {
           console.error('Erreur envoi email admin:', emailErr)
         }
 
         // Email de confirmation au prospect
         try {
-          await resend.emails.send({
+          const { error: prospectEmailErr } = await resend.emails.send({
             from: 'OGOUTEL_Prestige <onboarding@resend.dev>',
             to: email,
             subject: '✅ Votre demande OGOUTEL_Prestige a été reçue !',
@@ -118,17 +129,42 @@ export async function POST(request: NextRequest) {
               </div>
             `,
           })
+          if (prospectEmailErr) {
+            console.error('Erreur envoi email prospect:', prospectEmailErr)
+          }
         } catch (emailErr) {
           console.error('Erreur envoi email prospect:', emailErr)
         }
+
+        emailOk = true
       } catch (resendErr) {
         console.error('Erreur Resend:', resendErr)
+        emailOk = false
       }
     } else {
       console.log('[send-contact] Resend non configuré — skip emails')
     }
 
-    // Always return success to frontend (DB/email are non-blocking)
+    // 3. Check results — if both configured services failed, return an error
+    if (hasSupabase && hasResend && !dbInsertOk && !emailOk) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors du traitement de votre demande. Veuillez réessayer plus tard.' },
+        { status: 502 }
+      )
+    }
+    if (hasSupabase && !dbInsertOk && !hasResend) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors de l\'enregistrement de votre demande. Veuillez réessayer plus tard.' },
+        { status: 502 }
+      )
+    }
+    if (!hasSupabase && hasResend && !emailOk) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors de l\'envoi de la notification. Veuillez réessayer plus tard.' },
+        { status: 502 }
+      )
+    }
+
     return NextResponse.json({ success: true, message: 'Demande envoyée avec succès' })
 
   } catch (error) {

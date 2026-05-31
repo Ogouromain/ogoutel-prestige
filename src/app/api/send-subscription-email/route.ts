@@ -272,6 +272,8 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
+    let dbInsertOk = !hasSupabase; // if not configured, consider it N/A (not a failure)
+
     if (hasSupabase) {
       try {
         const { createAdminClient } = await import('@/lib/supabase/server');
@@ -291,11 +293,16 @@ export async function POST(request: NextRequest) {
           });
           if (error) {
             console.error('[send-subscription-email] Erreur Supabase:', error);
-            // Continue — don't block the response
+            dbInsertOk = false;
+          } else {
+            dbInsertOk = true;
           }
+        } else {
+          dbInsertOk = false;
         }
       } catch (dbErr) {
         console.error('[send-subscription-email] Erreur connexion Supabase:', dbErr);
+        dbInsertOk = false;
       }
     } else {
       console.log('[send-subscription-email] Supabase non configuré — skip DB insert');
@@ -304,26 +311,56 @@ export async function POST(request: NextRequest) {
     // ── 2. Resend Email ──
     const hasResend = !!process.env.RESEND_API_KEY;
 
+    let emailOk = !hasResend; // if not configured, consider it N/A (not a failure)
+
     if (hasResend) {
       try {
         const { Resend } = await import('resend');
         const resend = new Resend(process.env.RESEND_API_KEY);
         const planLabel = PLAN_LABELS[plan_choisi] ?? plan_choisi;
 
-        await resend.emails.send({
+        const { error: resendError } = await resend.emails.send({
           from: 'OGOUTEL_Prestige <onboarding@resend.dev>',
           to: ADMIN_EMAIL,
           subject: `🏨 Nouvelle demande d'abonnement OGOUTEL_Prestige — ${planLabel} — ${nom_hotel}`,
           html: buildAdminEmailHtml(body),
         });
+        if (resendError) {
+          console.error('[send-subscription-email] Erreur envoi email:', resendError);
+          emailOk = false;
+        } else {
+          emailOk = true;
+        }
       } catch (emailErr) {
         console.error('[send-subscription-email] Erreur envoi email:', emailErr);
+        emailOk = false;
       }
     } else {
       console.log('[send-subscription-email] Resend non configuré — skip email');
     }
 
-    // ── 3. WhatsApp Link (always returned) ──
+    // ── 3. Check results ──
+    // If both configured services failed, return an error
+    if (hasSupabase && hasResend && !dbInsertOk && !emailOk) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors de l\'enregistrement de votre demande. Veuillez réessayer plus tard.' },
+        { status: 502 }
+      );
+    }
+    if (hasSupabase && !dbInsertOk && !hasResend) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors de l\'enregistrement de votre demande. Veuillez réessayer plus tard.' },
+        { status: 502 }
+      );
+    }
+    if (!hasSupabase && hasResend && !emailOk) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors de l\'envoi de la notification. Veuillez réessayer plus tard.' },
+        { status: 502 }
+      );
+    }
+
+    // ── 4. WhatsApp Link (always returned on success) ──
     const whatsappLink = generateWhatsAppLink(nom_complet, nom_hotel, PLAN_LABELS[plan_choisi] ?? plan_choisi);
 
     return NextResponse.json({

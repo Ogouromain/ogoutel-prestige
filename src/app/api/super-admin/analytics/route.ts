@@ -8,7 +8,8 @@
 // - Falls back to demo data if Supabase unconfigured
 // ============================================
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,8 +201,12 @@ function formatMoisAnnee(date: Date): string {
 
 // ─── Route Handler ──────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
     // Dynamic import — handles missing env vars gracefully
     const { createAdminClient } = await import('@/lib/supabase/server');
     const supabase = await createAdminClient();

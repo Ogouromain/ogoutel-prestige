@@ -11,7 +11,9 @@
 // - JSON structuré avec en-têtes français
 // ============================================
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
+import { checkRateLimit, getClientIp, RATE_LIMIT_EXPORT } from '@/lib/rate-limit';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -129,8 +131,30 @@ function getFilenameByType(type: (typeof VALID_TYPES)[number]): string {
 
 // ─── GET Handler ─────────────────────────────────────────────────────────
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    // ── Rate Limiting ──
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(clientIp, RATE_LIMIT_EXPORT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Trop de requêtes. Veuillez réessayer dans quelques minutes.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
+    // ── Authentification ──
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant', 'receptionniste', 'super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(request.url);
     const rawType = searchParams.get('type') || 'reservations';
     const rawFormat = searchParams.get('format') || 'csv';
@@ -157,12 +181,19 @@ export async function GET(request: Request) {
 
     let data: Record<string, unknown>[];
 
-    if (supabase && hotelId) {
-      // ── Mode connecté avec hotel_id ──
-      data = await fetchFromSupabase(supabase, rawType, hotelId);
-    } else {
-      // ── Mode démo ──
+    // For super_admin, allow any hotel_id. For others, force their own hotel.
+    const userHotelId = auth.profile.hotel_id;
+    if (!userHotelId && auth.profile.role !== 'super_admin') {
+      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    }
+    const finalHotelId = auth.profile.role === 'super_admin'
+      ? (hotelId || userHotelId)
+      : userHotelId;
+    if (!finalHotelId) {
+      // Return demo data if no hotel
       data = getDataByType(rawType) as Record<string, unknown>[];
+    } else {
+      data = await fetchFromSupabase(supabase, rawType, finalHotelId);
     }
 
     const filename = getFilenameByType(rawType);

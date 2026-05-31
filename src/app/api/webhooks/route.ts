@@ -43,7 +43,13 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET ?? '';
  * Vérifie la signature HMAC-SHA256 du webhook (si secret configuré)
  */
 async function verifySignature(payload: string, signature: string | null): Promise<boolean> {
-  if (!WEBHOOK_SECRET) return true; // Pas de vérification si pas de secret
+  if (!WEBHOOK_SECRET) {
+    // In production, reject unverified webhooks
+    if (process.env.NODE_ENV === 'production') {
+      return false;
+    }
+    return true; // Allow in development without secret
+  }
   if (!signature) return false;
 
   try {

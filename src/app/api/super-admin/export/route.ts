@@ -9,6 +9,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── CSV Helpers ──────────────────────────────────────────────────────────────
 
@@ -190,6 +191,11 @@ async function exportCodes(supabase: Awaited<ReturnType<typeof import('@/lib/sup
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') ?? '';
 

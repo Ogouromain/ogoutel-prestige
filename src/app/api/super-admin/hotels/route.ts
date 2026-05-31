@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiAuth } from '@/lib/auth-helpers';
+import { sanitizeSearchParam } from '@/lib/sanitize-search';
 
 // ─── Demo data ────────────────────────────────────────────────────────────────
 
@@ -202,7 +203,8 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (search) {
-      query = query.or(`nom.ilike.%${search}%,ville.ilike.%${search}%`);
+      const safeSearch = sanitizeSearchParam(search);
+      query = query.or(`nom.ilike.%${safeSearch}%,ville.ilike.%${safeSearch}%`);
     }
     if (statut === 'actif') {
       query = query.eq('est_actif', true);

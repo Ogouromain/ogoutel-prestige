@@ -4,6 +4,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { sanitizeSearchParam } from '@/lib/sanitize-search';
 
 // ─── Rate Limiter (in-memory) ───────────────────────────────────────────
 
@@ -201,11 +202,12 @@ export async function GET(request: Request) {
 
       // Recherche clients
       if (!type || type === 'clients') {
+        const safeQ = sanitizeSearchParam(q);
         const { data: clients } = await supabase
           .from('clients')
           .select('id, nom, prenom, telephone')
           .eq('hotel_id', hotelId)
-          .or(`nom.ilike.%${q}%,prenom.ilike.%${q}%,telephone.ilike.%${q}%,email.ilike.%${q}%`)
+          .or(`nom.ilike.%${safeQ}%,prenom.ilike.%${safeQ}%,telephone.ilike.%${safeQ}%,email.ilike.%${safeQ}%`)
           .limit(8);
 
         if (clients) {
@@ -221,11 +223,12 @@ export async function GET(request: Request) {
 
       // Recherche chambres
       if (!type || type === 'chambres') {
+        const safeQ = sanitizeSearchParam(q);
         const { data: chambres } = await supabase
           .from('chambres')
           .select('id, numero, type, statut, prix_nuit')
           .eq('hotel_id', hotelId)
-          .or(`numero.ilike.%${q}%,type.ilike.%${q}%`)
+          .or(`numero.ilike.%${safeQ}%,type.ilike.%${safeQ}%`)
           .limit(8);
 
         if (chambres) {
@@ -242,11 +245,12 @@ export async function GET(request: Request) {
 
       // Recherche réservations
       if (!type || type === 'reservations') {
+        const safeQ = sanitizeSearchParam(q);
         const { data: reservations } = await supabase
           .from('reservations')
           .select('id, client_nom, chambre_numero, date_arrivee, statut')
           .eq('hotel_id', hotelId)
-          .or(`id.ilike.%${q}%,client_nom.ilike.%${q}%,chambre_numero.ilike.%${q}%`)
+          .or(`id.ilike.%${safeQ}%,client_nom.ilike.%${safeQ}%,chambre_numero.ilike.%${safeQ}%`)
           .limit(8);
 
         if (reservations) {

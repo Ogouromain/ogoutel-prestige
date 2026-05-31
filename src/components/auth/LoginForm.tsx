@@ -146,8 +146,16 @@ export function LoginForm() {
       const redirectPath = roleRedirects[profile.role] ?? '/';
       const redirectFromUrl = searchParams.get('redirect');
 
-      // Si une redirect URL est spécifiée et correspond au rôle, l'utiliser
-      const finalRedirect = redirectFromUrl ?? redirectPath;
+      // Si une redirect URL est spécifiée, valider qu'elle est bien une route interne
+      let finalRedirect = redirectPath;
+      if (redirectFromUrl) {
+        const isInternal = redirectFromUrl.startsWith('/') && 
+          !redirectFromUrl.startsWith('//') && 
+          !redirectFromUrl.includes(':');
+        if (isInternal) {
+          finalRedirect = redirectFromUrl;
+        }
+      }
 
       toast.success(`Bienvenue ${profile.full_name ?? ''} !`);
 

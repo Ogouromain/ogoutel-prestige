@@ -10,6 +10,8 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
+import { sanitizeSearchParam } from '@/lib/sanitize-search';
 
 // ─── Allowed status transitions ──────────────────────────────────────────────
 
@@ -150,6 +152,11 @@ const DEMO_DEMANDES = [
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '10', 10)));
@@ -217,7 +224,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('plan_choisi', plan);
     }
     if (search) {
-      query = query.or(`nom_complet.ilike.%${search}%,email.ilike.%${search}%,nom_hotel.ilike.%${search}%`);
+      const safeSearch = sanitizeSearchParam(search);
+      query = query.or(`nom_complet.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,nom_hotel.ilike.%${safeSearch}%`);
     }
     if (dateFrom) {
       query = query.gte('created_at', dateFrom);
@@ -247,6 +255,11 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+
     const body = await request.json();
     const { demandeId, statut, notes_admin } = body;
 
@@ -340,6 +353,11 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+
     const body = await request.json();
     const { demandeId, email_destinataire } = body;
 

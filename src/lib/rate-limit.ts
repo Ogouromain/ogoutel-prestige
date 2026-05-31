@@ -70,6 +70,24 @@ export const RATE_LIMIT_LOGIN: RateLimitConfig = {
   windowSeconds: 300, // 10 tentatives / 5 minutes
 };
 
+/** Création de réservation (endpoint bookings) */
+export const RATE_LIMIT_BOOKING: RateLimitConfig = {
+  maxRequests: 10,
+  windowSeconds: 60, // 10 requêtes / minute
+};
+
+/** Lecture publique (rooms, testimonials) */
+export const RATE_LIMIT_PUBLIC_READ: RateLimitConfig = {
+  maxRequests: 30,
+  windowSeconds: 60, // 30 requêtes / minute
+};
+
+/** Export de données (authentifié) */
+export const RATE_LIMIT_EXPORT: RateLimitConfig = {
+  maxRequests: 10,
+  windowSeconds: 60, // 10 requêtes / minute
+};
+
 // ─── Fonction principale ────────────────────────────────────────────────────
 
 /**

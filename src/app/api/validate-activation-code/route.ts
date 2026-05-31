@@ -81,6 +81,22 @@ export async function POST(request: NextRequest) {
 
     // ── 0b. MODE DÉMO : codes de test quand Supabase non configuré ──
     if (!hasSupabase) {
+      // En production, refuser les codes démo
+      if (process.env.NODE_ENV === 'production') {
+        const body: ValidateCodeBody = await request.json();
+        const { code } = body;
+        if (!code || typeof code !== 'string') {
+          return NextResponse.json<ValidationResponse>({
+            valid: false,
+            error: 'Le code d\'activation est requis.',
+          }, { status: 400 });
+        }
+        return NextResponse.json<ValidationResponse>({
+          valid: false,
+          error: 'Service de validation indisponible. Contactez le support.',
+        }, { status: 503 });
+      }
+
       const body: ValidateCodeBody = await request.json();
       const { code } = body;
 
@@ -275,6 +291,14 @@ export async function GET(request: NextRequest) {
     );
 
     if (!hasSupabase) {
+      // En production, refuser
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json<ValidationResponse>({
+          valid: false,
+          error: 'Service de validation indisponible. Contactez le support.',
+        }, { status: 503 });
+      }
+
       const demoCode = DEMO_CODES[normalizedCode];
       if (demoCode) {
         const expiresAt = new Date();
