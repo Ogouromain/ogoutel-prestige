@@ -221,20 +221,51 @@ export async function POST(request: NextRequest) {
 
     const hotelId = hotelData.id;
 
-    // ── 6. Mettre à jour le profil ──
-    const { error: profileError } = await adminClient
+    // ── 6. Créer ou mettre à jour le profil ──
+    // Note: admin.createUser ne déclenche pas toujours le trigger de création du profil.
+    // On utilise un pattern upsert (update → insert si 0 lignes affectées).
+    const { count: profileCount, error: profileCountError } = await adminClient
       .from('profiles')
-      .update({
-        full_name: fullName,
-        phone: telephone.trim(),
-        role: 'admin_hotel',
-        hotel_id: hotelId,
-      })
+      .select('id', { count: 'exact', head: true })
       .eq('id', userId);
 
-    if (profileError) {
-      console.error('[register-user] Erreur mise à jour profil:', profileError);
-      // Ne pas bloquer l'inscription, le profil existe déjà via le trigger
+    if (profileCountError) {
+      console.error('[register-user] Erreur vérification profil:', profileCountError);
+    }
+
+    if (!profileCountError && (profileCount ?? 0) > 0) {
+      // Profil existe → mettre à jour
+      const { error: profileUpdateError } = await adminClient
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          phone: telephone.trim(),
+          role: 'admin_hotel',
+          hotel_id: hotelId,
+          is_active: true,
+        })
+        .eq('id', userId);
+
+      if (profileUpdateError) {
+        console.error('[register-user] Erreur mise à jour profil:', profileUpdateError);
+      }
+    } else {
+      // Profil n'existe pas → créer
+      const { error: profileInsertError } = await adminClient
+        .from('profiles')
+        .insert({
+          id: userId,
+          full_name: fullName,
+          phone: telephone.trim(),
+          email: email.trim().toLowerCase(),
+          role: 'admin_hotel',
+          hotel_id: hotelId,
+          is_active: true,
+        });
+
+      if (profileInsertError) {
+        console.error('[register-user] Erreur création profil:', profileInsertError);
+      }
     }
 
     // ── 7. Marquer le code comme utilisé ──

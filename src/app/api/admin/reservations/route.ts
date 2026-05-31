@@ -543,6 +543,16 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('hotel_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.hotel_id) {
+      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    }
+
     // ── Status update logic ──
     if (statut) {
       // Validate transition
@@ -569,6 +579,7 @@ export async function PUT(request: Request) {
         .from('reservations')
         .update({ statut })
         .eq('id', reservationId)
+        .eq('hotel_id', profile.hotel_id)
         .select()
         .single();
 
@@ -606,6 +617,7 @@ export async function PUT(request: Request) {
       .from('reservations')
       .update(updates)
       .eq('id', reservationId)
+      .eq('hotel_id', profile.hotel_id)
       .select()
       .single();
 

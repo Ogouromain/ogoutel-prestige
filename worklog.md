@@ -681,3 +681,70 @@ Stage Summary:
 - ESLint: 0 errors, 1 pre-existing warning
 - Dev server: starts successfully without compilation errors
 - All 6 critical + 3 medium vulnerabilities addressed
+
+---
+Task ID: security-audit-fix-v2
+Agent: Main Agent
+Task: Complete security audit and fix all vulnerabilities in OGOUTEL_Prestige
+
+Work Log:
+- Read all 15+ critical files: proxy.ts, supabase clients (server.ts, client.ts), middleware.ts, auth-helpers.ts, all API routes, rate-limit.ts, html-escape.ts, hooks, types, constants, schema.sql
+- Performed systematic security audit across 9 areas with 35+ checkpoints
+- Identified 8 security vulnerabilities and bugs across 7 files
+
+### SECURITY FIX 1 (CRITICAL): admin/rooms PUT — Missing hotel_id ownership filter
+- **File**: `src/app/api/admin/rooms/route.ts` PUT handler
+- **Issue**: `.eq('id', roomId)` without `.eq('hotel_id', profile.hotel_id)` — allows updating ANY hotel's rooms
+- **Fix**: Added `.eq('hotel_id', profile.hotel_id)` to the update query
+
+### SECURITY FIX 2 (CRITICAL): admin/rooms DELETE — Missing hotel_id ownership check
+- **File**: `src/app/api/admin/rooms/route.ts` DELETE handler
+- **Issue**: No profile/hotel_id check at all — any authenticated user could delete any hotel's rooms
+- **Fix**: Added full auth check (getUser → profiles.select('hotel_id') → 403) + `.eq('hotel_id', profile.hotel_id)` to delete query
+
+### SECURITY FIX 3 (CRITICAL): admin/staff PUT — Missing hotel_id ownership filter
+- **File**: `src/app/api/admin/staff/route.ts` PUT handler
+- **Issue**: `.eq('id', personnelId)` without hotel_id — allows modifying any hotel's staff
+- **Fix**: Added profile/hotel_id check + `.eq('hotel_id', profile.hotel_id)` to update query
+
+### SECURITY FIX 4 (CRITICAL): admin/staff DELETE — Missing hotel_id ownership check
+- **File**: `src/app/api/admin/staff/route.ts` DELETE handler
+- **Issue**: No profile/hotel_id check — any authenticated user could deactivate any hotel's staff
+- **Fix**: Added full auth check + `.eq('hotel_id', profile.hotel_id)` to update query
+
+### SECURITY FIX 5 (CRITICAL): admin/reservations PUT — Missing hotel_id ownership filter
+- **File**: `src/app/api/admin/reservations/route.ts` PUT handler
+- **Issue**: `.eq('id', reservationId)` without hotel_id — allows modifying any hotel's reservations
+- **Fix**: Added profile/hotel_id check + `.eq('hotel_id', profile.hotel_id)` to both status update and general update queries
+
+### SECURITY FIX 6 (MEDIUM): Middleware — API role checking gap for /api/admin/*, /api/staff/*, /api/super-admin/*
+- **File**: `src/lib/supabase/middleware.ts` getRouteProtégée()
+- **Issue**: API routes under `/api/admin/*`, `/api/staff/*`, `/api/super-admin/*` were NOT checked for role at middleware level
+- **Fix**: Extended `getRouteProtégée()` to check `/api{prefix}` paths in addition to direct prefix paths
+- **Impact**: Middleware now blocks unauthorized API role access with 403 JSON before reaching the API handler
+
+### SECURITY FIX 7 (MEDIUM): validate-activation-code — Combined GET+POST rate limit bypass
+- **File**: `src/app/api/validate-activation-code/route.ts`
+- **Issue**: GET and POST endpoints each had independent rate limits, allowing 20 attempts/5min (10+10) instead of 10
+- **Fix**: Introduced shared `RATE_LIMIT_KEY_PREFIX = 'validate-code:'` used by both handlers, preventing double quota bypass
+- Also rewrote GET handler to be standalone (no nested POST call to avoid double-rate-limiting)
+
+### FIX 8: /api/contact — Inconsistent data storage (Prisma SQLite → Supabase)
+- **File**: `src/app/api/contact/route.ts`
+- **Issue**: Contact form used Prisma SQLite (legacy from original template) while all other routes use Supabase
+- **Fix**: Rewrote to use Supabase (activites_log table with action='contact') + Resend email, with rate limiting and proper French validation
+
+### FIX 9 (BUG): Hotel owner cannot see hotel data after registration
+- **File**: `src/app/api/register-user/route.ts` step 6
+- **Issue**: Profile update used `.update()` which fails silently if profile doesn't exist (trigger may not fire for `admin.createUser`)
+- **Fix**: Changed to upsert pattern — check if profile exists, update if yes, insert if no
+  - Also added `is_active: true` and `email` fields to profile creation
+
+Stage Summary:
+- 7 files modified across security fixes
+- 5 CRITICAL security vulnerabilities patched (cross-hotel data access)
+- 2 MEDIUM security improvements (middleware API role checking, rate limiting)
+- 1 data consistency fix (contact route → Supabase)
+- 1 registration bug fix (profile upsert pattern)
+- ESLint: 0 errors (1 pre-existing TanStack Table warning)
+- All routes verified returning HTTP 200 when server running

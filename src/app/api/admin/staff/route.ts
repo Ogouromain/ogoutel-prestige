@@ -375,11 +375,22 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
     }
 
-    // ── Update ──
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('hotel_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.hotel_id) {
+      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    }
+
+    // ── Update (scoped to hotel) ──
     const { data: personnel, error } = await supabase
       .from('personnel_hotel')
       .update(updates)
       .eq('id', personnelId)
+      .eq('hotel_id', profile.hotel_id)
       .select('*, user:profiles!user_id(id, email, avatar_url)')
       .single();
 
@@ -432,11 +443,22 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
     }
 
-    // ── Deactivate (not hard delete) ──
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('hotel_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.hotel_id) {
+      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    }
+
+    // ── Deactivate (scoped to hotel) ──
     const { error } = await supabase
       .from('personnel_hotel')
       .update({ est_actif: false })
-      .eq('id', personnelId);
+      .eq('id', personnelId)
+      .eq('hotel_id', profile.hotel_id);
 
     if (error) {
       return NextResponse.json(

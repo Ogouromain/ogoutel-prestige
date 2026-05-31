@@ -465,11 +465,12 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
     }
 
-    // ── Update ──
+    // ── Update (scoped to hotel) ──
     const { data: chambre, error } = await supabase
       .from('chambres')
       .update(updates)
       .eq('id', roomId)
+      .eq('hotel_id', profile.hotel_id)
       .select()
       .single();
 
@@ -522,6 +523,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('hotel_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.hotel_id) {
+      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    }
+
     // ── Check for active reservations ──
     const { data: activeRes, count } = await supabase
       .from('reservations')
@@ -536,11 +547,12 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // ── Delete ──
+    // ── Delete (scoped to hotel) ──
     const { error } = await supabase
       .from('chambres')
       .delete()
-      .eq('id', chambreId);
+      .eq('id', chambreId)
+      .eq('hotel_id', profile.hotel_id);
 
     if (error) {
       return NextResponse.json(

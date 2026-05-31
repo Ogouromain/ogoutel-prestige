@@ -85,7 +85,13 @@ function getRouteProtégée(pathname: string): string | null {
     (a, b) => b.length - a.length
   );
   for (const prefix of prefixes) {
-    if (pathname.startsWith(prefix + "/") || pathname === prefix) {
+    // Check both direct match and /api/ prefix (e.g., /api/admin/rooms → /admin)
+    if (
+      pathname.startsWith(prefix + "/") ||
+      pathname === prefix ||
+      pathname.startsWith("/api" + prefix + "/") ||
+      pathname === "/api" + prefix
+    ) {
       return prefix;
     }
   }
