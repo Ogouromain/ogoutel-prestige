@@ -149,7 +149,6 @@ export async function POST(request: NextRequest) {
         hotel_id: profile.hotel_id || null,
       },
       redirect: getRedirectPath(profile.role || userMeta.role),
-      _diag: diag,
     });
 
     return response;
