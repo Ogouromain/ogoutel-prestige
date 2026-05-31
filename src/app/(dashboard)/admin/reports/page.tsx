@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { authFetch } from '@/lib/api-fetch';
 import { formaterPrix } from '@/lib/constants';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -127,7 +128,7 @@ export default function ReportsPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({ periode, mois, annee });
-      const res = await fetch(`/api/admin/finances?${params}`);
+      const res = await authFetch(`/api/admin/finances?${params}`);
       const json = await res.json();
       if (json.success) {
         const fd = json.data;

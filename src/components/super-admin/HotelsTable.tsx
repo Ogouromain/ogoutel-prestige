@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { authFetch } from '@/lib/api-fetch';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -418,7 +419,7 @@ export default function HotelsTable({ hotels, isLoading }: HotelsTableProps) {
   const handleToggleActive = useCallback(
     async (hotel: HotelRow) => {
       try {
-        const res = await fetch('/api/super-admin/hotels', {
+        const res = await authFetch('/api/super-admin/hotels', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -441,7 +442,7 @@ export default function HotelsTable({ hotels, isLoading }: HotelsTableProps) {
 
   const handleChangePlan = useCallback(async (hotel: HotelRow, newPlan: PlanId) => {
     try {
-      const res = await fetch('/api/super-admin/hotels', {
+      const res = await authFetch('/api/super-admin/hotels', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: hotel.id, plan: newPlan }),

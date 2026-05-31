@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { authFetch } from '@/lib/api-fetch';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import DashboardStats from '@/components/admin/DashboardStats';
@@ -72,7 +73,7 @@ export default function AdminDashboardPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/stats');
+      const res = await authFetch('/api/admin/stats');
       const json = await res.json();
       if (json.success) {
         setData(json.data);

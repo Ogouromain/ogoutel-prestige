@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { authFetch } from '@/lib/api-fetch';
 import { cn, formaterPrix } from '@/lib/utils';
 import { TYPES_CHAMBRES } from '@/lib/constants';
 
@@ -231,7 +232,7 @@ export default function StaffClientsPage() {
       const params = debouncedSearch
         ? `?search=${encodeURIComponent(debouncedSearch)}&limit=50`
         : '?limit=50';
-      const res = await fetch(`/api/staff/clients${params}`);
+      const res = await authFetch(`/api/staff/clients${params}`);
       const json = await res.json();
       if (json.success) {
         setClients(json.data.clients ?? []);

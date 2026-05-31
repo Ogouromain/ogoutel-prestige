@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { authFetch } from '@/lib/api-fetch';
 import { cn } from '@/lib/utils';
 import ActivationCodeGenerator from '@/components/super-admin/ActivationCodeGenerator';
 
@@ -88,7 +89,7 @@ export default function ActivationCodesPage() {
 
   const fetchCodes = useCallback(async () => {
     try {
-      const res = await fetch('/api/super-admin/codes?page=1&limit=20');
+      const res = await authFetch('/api/super-admin/codes?page=1&limit=20');
       const json = await res.json();
       if (json.success) {
         setCodesData(json.data);
@@ -100,7 +101,7 @@ export default function ActivationCodesPage() {
 
   const fetchPendingRequests = useCallback(async () => {
     try {
-      const res = await fetch('/api/super-admin/subscriptions?statut=paye&limit=50');
+      const res = await authFetch('/api/super-admin/subscriptions?statut=paye&limit=50');
       const json = await res.json();
       if (json.success) {
         setPendingRequests(json.data.demandes ?? []);

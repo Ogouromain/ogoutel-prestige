@@ -34,6 +34,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { authFetch } from '@/lib/api-fetch';
 import type { PlanId } from '@/lib/constants';
 
 // ─── Navigation Items ──────────────────────────────────────────────────────────
@@ -388,7 +389,7 @@ export default function AdminSidebar() {
   useEffect(() => {
     async function fetchHotelInfo() {
       try {
-        const res = await fetch('/api/admin/settings');
+        const res = await authFetch('/api/admin/settings');
         if (res.ok) {
           const data = await res.json();
           setHotelName(data.hotel?.nom || data.hotel?.name || null);

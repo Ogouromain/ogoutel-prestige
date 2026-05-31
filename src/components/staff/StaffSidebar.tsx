@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { authFetch } from '@/lib/api-fetch';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
@@ -415,7 +416,7 @@ export default function StaffSidebar() {
   useEffect(() => {
     async function fetchInfo() {
       try {
-        const res = await fetch('/api/staff/stats');
+        const res = await authFetch('/api/staff/stats');
         if (res.ok) {
           const data = await res.json();
           setHotelName(data.data?.hotel_nom || null);

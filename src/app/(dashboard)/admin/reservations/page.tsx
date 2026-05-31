@@ -5,6 +5,7 @@ import { RefreshCw, Clock, CheckCircle2, LogIn, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Card, CardContent } from '@/components/ui/card';
+import { authFetch } from '@/lib/api-fetch';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import ReservationsList from '@/components/admin/ReservationsList';
@@ -80,7 +81,7 @@ export default function AdminReservationsPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/reservations?limit=50');
+      const res = await authFetch('/api/admin/reservations?limit=50');
       const json = await res.json();
       if (json.success) {
         setReservations(json.data.reservations ?? []);

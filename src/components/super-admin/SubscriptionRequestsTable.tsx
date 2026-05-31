@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { authFetch } from '@/lib/api-fetch';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -472,7 +473,7 @@ export default function SubscriptionRequestsTable({
   const updateStatut = useCallback(
     async (id: string, statut: string) => {
       try {
-        const res = await fetch('/api/super-admin/subscriptions', {
+        const res = await authFetch('/api/super-admin/subscriptions', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, statut }),
@@ -491,7 +492,7 @@ export default function SubscriptionRequestsTable({
   const handleGenerateCode = useCallback(
     async (demande: AbonnementDemande) => {
       try {
-        const res = await fetch('/api/super-admin/codes', {
+        const res = await authFetch('/api/super-admin/codes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -514,7 +515,7 @@ export default function SubscriptionRequestsTable({
   const handleSaveNotes = useCallback(
     async (id: string, notes: string) => {
       try {
-        const res = await fetch('/api/super-admin/subscriptions', {
+        const res = await authFetch('/api/super-admin/subscriptions', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, notes_admin: notes }),

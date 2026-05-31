@@ -157,6 +157,47 @@ export async function updateSession(request: NextRequest) {
 
     let supabaseResponse = NextResponse.next({ request });
 
+    // ─── Pour les requêtes API, accepter aussi le header Authorization ───
+    // Si un header Authorization est présent, on valide directement le token
+    // sans passer par le client SSR (évite les problèmes de cookie parsing)
+    if (pathname.startsWith("/api/")) {
+      const authHeader = request.headers.get("Authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "");
+        const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: supabaseAnonKey,
+          },
+        });
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          const user = userData;
+          if (user?.id) {
+            const role = extraireRole(user);
+            if (role) {
+              // Check route permissions
+              const routeProtégée = getRouteProtégée(pathname);
+              if (routeProtégée) {
+                const rolesAutorisés = PERMISSIONS_ROUTES[routeProtégée];
+                if (rolesAutorisés && !rolesAutorisés.includes(role)) {
+                  if (role === "super_admin") {
+                    return NextResponse.redirect(new URL("/super-admin", request.url));
+                  }
+                  return NextResponse.json(
+                    { success: false, error: "Permissions insuffisantes." },
+                    { status: 403 }
+                  );
+                }
+              }
+              return supabaseResponse;
+            }
+          }
+        }
+        // Token invalid → fall through to normal cookie-based auth
+      }
+    }
+
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {

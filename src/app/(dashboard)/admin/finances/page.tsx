@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { authFetch } from '@/lib/api-fetch';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import FinancesDashboard from '@/components/admin/FinancesDashboard';
@@ -36,7 +37,7 @@ export default function AdminFinancesPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/finances?periode=mois');
+      const res = await authFetch('/api/admin/finances?periode=mois');
       const json = await res.json();
       if (json.success) {
         setFinances(json.data);

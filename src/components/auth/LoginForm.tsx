@@ -16,6 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v4';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { setAccessToken } from '@/lib/api-fetch';
 import {
   Eye,
   EyeOff,
@@ -115,7 +116,12 @@ export function LoginForm() {
         return;
       }
 
-      // Success - determine redirect
+      // Success - store access token for API calls
+      if (result.access_token) {
+        setAccessToken(result.access_token);
+      }
+
+      // Determine redirect
       const redirectPath = result.redirect || '/';
       const redirectFromUrl = searchParams.get('redirect');
 

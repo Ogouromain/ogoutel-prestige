@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { authFetch } from '@/lib/api-fetch';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import StaffManager from '@/components/admin/StaffManager';
@@ -53,7 +54,7 @@ export default function AdminStaffPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/staff?limit=50');
+      const res = await authFetch('/api/admin/staff?limit=50');
       const json = await res.json();
       if (json.success) {
         setPersonnel(json.data.personnel ?? []);

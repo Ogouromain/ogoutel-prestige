@@ -63,6 +63,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formaterPrix } from '@/lib/constants';
+import { authFetch } from '@/lib/api-fetch';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -377,7 +378,7 @@ export default function FinancesDashboard({
     async (data: any) => {
       setIsSubmittingExpense(true);
       try {
-        const res = await fetch('/api/admin/finances', {
+        const res = await authFetch('/api/admin/finances', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),

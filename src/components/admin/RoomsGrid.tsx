@@ -67,6 +67,7 @@ import {
 } from '@/lib/constants';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { authFetch } from '@/lib/api-fetch';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -699,7 +700,7 @@ export default function RoomsGrid({ chambres, isLoading, limitesChambres, onRefr
 
   // Submit handlers
   const handleAddRoom = useCallback(async (data: any) => {
-    const res = await fetch('/api/admin/rooms', {
+    const res = await authFetch('/api/admin/rooms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -712,7 +713,7 @@ export default function RoomsGrid({ chambres, isLoading, limitesChambres, onRefr
   }, [onRefresh]);
 
   const handleStatusChange = useCallback(async (chambreId: string, statut: string) => {
-    const res = await fetch('/api/admin/rooms', {
+    const res = await authFetch('/api/admin/rooms', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: chambreId, statut }),

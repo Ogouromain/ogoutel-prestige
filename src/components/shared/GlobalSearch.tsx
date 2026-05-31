@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { formatCFA } from '@/lib/utils';
+import { authFetch } from '@/lib/api-fetch';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -133,7 +134,7 @@ export default function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) 
 
     try {
       const params = new URLSearchParams({ q: searchTerm });
-      const res = await fetch(`/api/search?${params.toString()}`, {
+      const res = await authFetch(`/api/search?${params.toString()}`, {
         signal: controller.signal,
       });
       const json = await res.json();

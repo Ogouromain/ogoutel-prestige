@@ -35,6 +35,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { authFetch } from '@/lib/api-fetch';
 import { cn, formatCFA } from '@/lib/utils';
 import { TYPES_CHAMBRES } from '@/lib/constants';
 
@@ -244,7 +245,7 @@ export default function CheckOutForm() {
     setIsLoading(true);
     try {
       const params = search ? `?search=${encodeURIComponent(search)}` : '';
-      const res = await fetch(`/api/staff/checkout${params}`);
+      const res = await authFetch(`/api/staff/checkout${params}`);
       const json = await res.json();
       if (json.success) {
         setSejours(json.data.sejours ?? []);
@@ -268,7 +269,7 @@ export default function CheckOutForm() {
     if (!selectedSejour) return;
     setIsProcessing(true);
     try {
-      const res = await fetch('/api/staff/checkout', {
+      const res = await authFetch('/api/staff/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

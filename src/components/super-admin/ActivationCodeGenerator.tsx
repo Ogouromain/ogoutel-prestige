@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { authFetch } from '@/lib/api-fetch';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -202,7 +203,7 @@ function GenerateCodeDialog({
         body.demande_id = selectedDemandeId;
       }
 
-      const res = await fetch('/api/super-admin/codes', {
+      const res = await authFetch('/api/super-admin/codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -561,7 +562,7 @@ export default function ActivationCodeGenerator({
   const handleResendEmail = useCallback(
     async (code: CodeAcces) => {
       try {
-        const res = await fetch('/api/super-admin/codes', {
+        const res = await authFetch('/api/super-admin/codes', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -585,7 +586,7 @@ export default function ActivationCodeGenerator({
         return;
       }
       try {
-        const res = await fetch('/api/super-admin/codes', {
+        const res = await authFetch('/api/super-admin/codes', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

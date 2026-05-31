@@ -84,6 +84,7 @@ import {
 } from '@/lib/constants';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { authFetch } from '@/lib/api-fetch';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -725,7 +726,7 @@ export default function ReservationsList({ reservations, isLoading, onRefresh }:
   // API actions
   const handleAction = useCallback(async (id: string, statut: string, label: string) => {
     try {
-      const res = await fetch('/api/admin/reservations', {
+      const res = await authFetch('/api/admin/reservations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, statut }),
@@ -749,7 +750,7 @@ export default function ReservationsList({ reservations, isLoading, onRefresh }:
 
   const handleCancel = useCallback(async (id: string) => {
     try {
-      const res = await fetch('/api/admin/reservations', {
+      const res = await authFetch('/api/admin/reservations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, statut: 'annulee' }),
@@ -766,7 +767,7 @@ export default function ReservationsList({ reservations, isLoading, onRefresh }:
   }, [onRefresh]);
 
   const handleNewReservation = useCallback(async (data: any) => {
-    const res = await fetch('/api/admin/reservations', {
+    const res = await authFetch('/api/admin/reservations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

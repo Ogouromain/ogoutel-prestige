@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { authFetch } from '@/lib/api-fetch';
 import { cn, formatCFA } from '@/lib/utils';
 import { TYPES_CHAMBRES } from '@/lib/constants';
 
@@ -309,7 +310,7 @@ export default function RoomsStatusView() {
       const params = filterStatut
         ? `?statut=${filterStatut}&limit=50`
         : '?limit=50';
-      const res = await fetch(`/api/admin/rooms${params}`);
+      const res = await authFetch(`/api/admin/rooms${params}`);
       const json = await res.json();
       if (json.success) {
         setChambres(json.data.chambres ?? []);

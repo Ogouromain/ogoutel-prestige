@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, LogIn, LogOut, BedDouble, Clock, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { authFetch } from '@/lib/api-fetch';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -144,7 +145,7 @@ export default function StaffDashboardPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/staff/stats');
+      const res = await authFetch('/api/staff/stats');
       const json = await res.json();
       if (json.success) {
         setData(json.data);

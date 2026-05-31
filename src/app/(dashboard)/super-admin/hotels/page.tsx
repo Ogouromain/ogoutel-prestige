@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { authFetch } from '@/lib/api-fetch';
 import { cn } from '@/lib/utils';
 import HotelsTable from '@/components/super-admin/HotelsTable';
 
@@ -81,7 +82,7 @@ export default function HotelsPage() {
   const fetchHotels = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/super-admin/hotels?page=1&limit=20');
+      const res = await authFetch('/api/super-admin/hotels?page=1&limit=20');
       const json = await res.json();
       if (json.success) {
         setHotelsData(json.data);

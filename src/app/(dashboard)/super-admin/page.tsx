@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { authFetch } from '@/lib/api-fetch';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { PLANS_ABONNEMENT, STATUTS_DEMANDE } from '@/lib/constants';
@@ -177,7 +178,7 @@ export default function SuperAdminDashboard() {
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/super-admin/stats');
+      const res = await authFetch('/api/super-admin/stats');
       const json = await res.json();
       if (json.success) {
         setStats(json.data);

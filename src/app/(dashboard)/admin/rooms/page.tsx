@@ -5,6 +5,7 @@ import { RefreshCw, Bed, CheckCircle2, XCircle, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Card, CardContent } from '@/components/ui/card';
+import { authFetch } from '@/lib/api-fetch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -88,7 +89,7 @@ export default function AdminRoomsPage() {
   const fetchRooms = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/rooms?limit=100');
+      const res = await authFetch('/api/admin/rooms?limit=100');
       const json = await res.json();
       if (json.success) {
         setChambres(json.data.chambres ?? []);
@@ -104,7 +105,7 @@ export default function AdminRoomsPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/settings');
+      const res = await authFetch('/api/admin/settings');
       const json = await res.json();
       if (json.success && json.data?.plan_info?.limites) {
         setLimitesChambres(json.data.plan_info.limites);

@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { BarChart3, RefreshCw, AlertTriangle, Building2, TrendingUp } from 'lucide-react';
 
+import { authFetch } from '@/lib/api-fetch';
 import { cn, formatCFA } from '@/lib/utils';
 import { PLANS_ABONNEMENT } from '@/lib/constants';
 import type { PlanId } from '@/lib/constants';
@@ -567,7 +568,7 @@ export default function AnalyticsCharts() {
     setIsLoading(true);
     setError(false);
     try {
-      const res = await fetch('/api/super-admin/analytics');
+      const res = await authFetch('/api/super-admin/analytics');
       if (!res.ok) throw new Error('Erreur réseau');
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? 'Erreur inconnue');

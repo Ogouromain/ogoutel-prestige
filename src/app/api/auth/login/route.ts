@@ -138,9 +138,11 @@ export async function POST(request: NextRequest) {
       final_profile: profile,
     });
 
-    // 3. Return success
+    // 3. Return success + access_token for client-side API calls
+    const accessToken = authData.session?.access_token || null;
     const response = NextResponse.json({
       success: true,
+      access_token: accessToken,
       user: {
         id: userId,
         email: authData.user.email,

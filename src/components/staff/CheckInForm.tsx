@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { authFetch } from '@/lib/api-fetch';
 import { cn, formatCFA } from '@/lib/utils';
 import { TYPES_CHAMBRES, PIECES_IDENTITE } from '@/lib/constants';
 
@@ -106,7 +107,7 @@ export default function CheckInForm() {
   const fetchRooms = useCallback(async () => {
     setIsLoadingRooms(true);
     try {
-      const res = await fetch('/api/admin/rooms?statut=disponible&limit=50');
+      const res = await authFetch('/api/admin/rooms?statut=disponible&limit=50');
       const json = await res.json();
       if (json.success) {
         setAvailableRooms(json.data.chambres ?? []);
@@ -187,7 +188,7 @@ export default function CheckInForm() {
 
       // Create client if new
       if (isNewClient && !clientId) {
-        const clientRes = await fetch('/api/staff/clients', {
+        const clientRes = await authFetch('/api/staff/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newClient),
@@ -203,7 +204,7 @@ export default function CheckInForm() {
       }
 
       // Create check-in reservation
-      const res = await fetch('/api/staff/checkin', {
+      const res = await authFetch('/api/staff/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

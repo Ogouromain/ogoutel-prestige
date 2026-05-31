@@ -44,6 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { authFetch } from '@/lib/api-fetch';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -538,7 +539,7 @@ export default function StaffManager({
     async (data: FormData) => {
       setIsSubmitting(true);
       try {
-        const res = await fetch('/api/admin/staff', {
+        const res = await authFetch('/api/admin/staff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
@@ -565,7 +566,7 @@ export default function StaffManager({
       if (!selectedMember) return;
       setIsSubmitting(true);
       try {
-        const res = await fetch('/api/admin/staff', {
+        const res = await authFetch('/api/admin/staff', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: selectedMember.id, ...data }),
@@ -592,7 +593,7 @@ export default function StaffManager({
       const newStatut = member.statut === 'actif' ? 'inactif' : 'actif';
       const action = newStatut === 'actif' ? 'activer' : 'désactiver';
       try {
-        const res = await fetch('/api/admin/staff', {
+        const res = await authFetch('/api/admin/staff', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: member.id, statut: newStatut }),
