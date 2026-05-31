@@ -139,7 +139,28 @@ export async function POST(request: NextRequest) {
     });
 
     // 3. Return success + access_token for client-side API calls
-    const accessToken = authData.session?.access_token || null;
+    // The SSR client stores session in cookies; extract the access_token
+    // by reading the cookie that was just set
+    let accessToken = authData.session?.access_token || null;
+
+    // Fallback: extract from the cookieStore (the SSR client set it)
+    if (!accessToken) {
+      try {
+        const cookies = await cookieStore.getAll();
+        const authCookie = cookies.find(c =>
+          c.name.includes('auth-token') || c.name.includes('access_token')
+        );
+        if (authCookie?.value) {
+          let raw = authCookie.value;
+          if (raw.startsWith('base64-')) raw = raw.substring(7);
+          const decoded = JSON.parse(Buffer.from(raw, 'base64').toString());
+          accessToken = decoded.access_token || null;
+        }
+      } catch {
+        // Ignore cookie parsing errors
+      }
+    }
+
     const response = NextResponse.json({
       success: true,
       access_token: accessToken,
