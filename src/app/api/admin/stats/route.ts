@@ -9,6 +9,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -222,39 +223,28 @@ function buildDemoStats() {
 
 // ─── Route Handler ──────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // Dynamic import — handles missing env vars gracefully
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       return NextResponse.json({ success: true, data: buildDemoStats() });
     }
 
-    // ── Get current user's hotel ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // ── Auth check ──
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
       return NextResponse.json(
-        { success: false, error: 'Non authentifié.' },
-        { status: 401 }
+        { success: false, error: auth.error },
+        { status: auth.status }
       );
     }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json(
-        { success: false, error: 'Aucun hôtel associé à votre compte.' },
-        { status: 403 }
-      );
-    }
-
+    const { user, profile } = auth;
     const hotelId = profile.hotel_id;
+
+    const supabase = await createAdminClient();
     const todayISO = todayStr();
 
     // ── Parallel queries ──

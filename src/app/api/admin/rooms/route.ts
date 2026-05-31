@@ -13,6 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { PLANS_ABONNEMENT } from '@/lib/constants';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Demo data ────────────────────────────────────────────────────────────
 
@@ -200,36 +201,30 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || undefined;
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const filtered = filterDemoChambres(statut, type, etage, search);
       const result = paginateDemoChambres(filtered, page, limit);
       return NextResponse.json({ success: true, data: result });
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Build query ──
     let query = supabase
       .from('chambres')
       .select('*', { count: 'exact' })
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .order('etage')
       .order('numero');
 
@@ -254,7 +249,7 @@ export async function GET(request: Request) {
       const { data: activeRes } = await supabase
         .from('reservations')
         .select('id, chambre_id, client_id, date_arrivee, date_depart, statut, client:clients!client_id(nom, prenom, telephone)')
-        .eq('hotel_id', profile.hotel_id)
+        .eq('hotel_id', hotelId)
         .in('chambre_id', chambreIds)
         .eq('statut', 'checkin');
 
@@ -314,10 +309,10 @@ export async function POST(request: Request) {
     }
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const newChambre = {
         id: `ch-new-${Date.now()}`,
         hotel_id: 'hotel-demo',
@@ -333,26 +328,20 @@ export async function POST(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Check plan limits ──
     const { data: hotel } = await supabase
       .from('hotels')
       .select('plan, nombre_chambres')
-      .eq('id', profile.hotel_id)
+      .eq('id', hotelId)
       .single();
 
     if (hotel) {
@@ -369,7 +358,7 @@ export async function POST(request: Request) {
     const { data: chambre, error } = await supabase
       .from('chambres')
       .insert({
-        hotel_id: profile.hotel_id,
+        hotel_id: hotelId,
         numero,
         type,
         prix_nuit: Number(prix_nuit),
@@ -437,10 +426,10 @@ export async function PUT(request: Request) {
     }
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const chambre = DEMO_CHAMBRES.find(c => c.id === roomId);
       if (!chambre) {
         return NextResponse.json({ success: false, error: 'Chambre non trouvée (démo).' }, { status: 404 });
@@ -450,27 +439,21 @@ export async function PUT(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Update (scoped to hotel) ──
     const { data: chambre, error } = await supabase
       .from('chambres')
       .update(updates)
       .eq('id', roomId)
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .select()
       .single();
 
@@ -506,10 +489,10 @@ export async function DELETE(request: Request) {
     }
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const chambre = DEMO_CHAMBRES.find(c => c.id === chambreId);
       if (!chambre) {
         return NextResponse.json({ success: false, error: 'Chambre non trouvée (démo).' }, { status: 404 });
@@ -518,20 +501,14 @@ export async function DELETE(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Check for active reservations ──
     const { data: activeRes, count } = await supabase
@@ -552,7 +529,7 @@ export async function DELETE(request: Request) {
       .from('chambres')
       .delete()
       .eq('id', chambreId)
-      .eq('hotel_id', profile.hotel_id);
+      .eq('hotel_id', hotelId);
 
     if (error) {
       return NextResponse.json(

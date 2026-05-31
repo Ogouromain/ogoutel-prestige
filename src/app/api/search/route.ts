@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { sanitizeSearchParam } from '@/lib/sanitize-search';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Rate Limiter (in-memory) ───────────────────────────────────────────
 
@@ -167,33 +168,22 @@ export async function GET(request: Request) {
     }
 
     // ── Tentative Supabase ──────────────────────────────────────────────
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (supabase) {
-      // ── Auth ──
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+    if (client) {
+      // ── Auth check ──
+      const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant', 'receptionniste']);
+      if (!auth.authorized) {
         return NextResponse.json(
-          { success: false, error: 'Non authentifié.' },
-          { status: 401 }
+          { success: false, error: auth.error },
+          { status: auth.status }
         );
       }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('hotel_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.hotel_id) {
-        return NextResponse.json(
-          { success: false, error: 'Aucun hôtel associé.' },
-          { status: 403 }
-        );
-      }
-
+      const { user, profile } = auth;
       const hotelId = profile.hotel_id;
+
+      const supabase = await createAdminClient();
       const results: {
         clients: Array<{ id: string; nom: string; prenom: string; telephone: string; type: string }>;
         chambres: Array<{ id: string; numero: string; type: string; statut: string; prix_nuit: number; type_result: string }>;

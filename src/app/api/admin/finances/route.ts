@@ -10,6 +10,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -169,30 +170,22 @@ export async function GET(request: Request) {
     const annee = parseInt(searchParams.get('annee') || String(new Date().getFullYear()));
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       return NextResponse.json({ success: true, data: buildDemoFinances() });
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
-
+    const { user, profile } = auth;
     const hotelId = profile.hotel_id;
+
+    const supabase = await createAdminClient();
 
     // ── Date range ──
     let startDate: string;
@@ -365,10 +358,10 @@ export async function POST(request: Request) {
     }
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const depense = {
         id: `dep-new-${Date.now()}`,
         categorie,
@@ -382,26 +375,20 @@ export async function POST(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Store in activites_log ──
     const { error } = await supabase
       .from('activites_log')
       .insert({
-        hotel_id: profile.hotel_id,
+        hotel_id: hotelId,
         user_id: user.id,
         action: 'depense',
         details: {

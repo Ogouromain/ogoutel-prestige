@@ -5,6 +5,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Demo data ────────────────────────────────────────────────────────────
 
@@ -104,10 +105,10 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const clientId = searchParams.get('client_id') || undefined;
 
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       // Demo mode
       let filtered = [...DEMO_CLIENTS];
       if (search) {
@@ -139,18 +140,21 @@ export async function GET(request: Request) {
       });
     }
 
-    // ── Auth ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    // ── Auth check ──
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant', 'receptionniste']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase.from('profiles').select('hotel_id').eq('id', user.id).single();
-    if (!profile?.hotel_id) return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    const supabase = await createAdminClient();
 
     // ── Build query ──
     let query = supabase
       .from('clients')
       .select('*, reservations:reservations!client_id(id, date_arrivee, date_depart, nombre_nuits, montant_total, statut, chambre:chambres!chambre_id(numero, type))', { count: 'exact' })
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .order('created_at', { ascending: false });
 
     if (clientId) {
@@ -197,10 +201,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const newClient = {
         id: `cl-new-${Date.now()}`,
         hotel_id: 'hotel-demo',
@@ -219,18 +223,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: newClient, message: 'Client créé (démo).' });
     }
 
-    // ── Auth ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    // ── Auth check ──
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant', 'receptionniste']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase.from('profiles').select('hotel_id').eq('id', user.id).single();
-    if (!profile?.hotel_id) return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    const supabase = await createAdminClient();
 
     // Check if client already exists with same ID number
     const { data: existing } = await supabase
       .from('clients')
       .select('id')
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .eq('piece_identite_numero', piece_identite_numero)
       .single();
 
@@ -244,10 +251,10 @@ export async function POST(request: Request) {
     }
 
     // ── Insert ──
-    const { data: client, error } = await supabase
+    const { data: clientData, error } = await supabase
       .from('clients')
       .insert({
-        hotel_id: profile.hotel_id,
+        hotel_id: hotelId,
         nom,
         prenom,
         telephone,
@@ -263,7 +270,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: `Erreur : ${error.message}` }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: client, message: 'Client créé avec succès.' });
+    return NextResponse.json({ success: true, data: clientData, message: 'Client créé avec succès.' });
   } catch (error) {
     console.error('[staff/clients POST] Erreur:', error);
     return NextResponse.json({ success: false, error: 'Erreur interne du serveur.' }, { status: 500 });

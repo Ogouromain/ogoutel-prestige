@@ -13,6 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { PLANS_ABONNEMENT } from '@/lib/constants';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Demo data ────────────────────────────────────────────────────────────
 
@@ -103,10 +104,10 @@ export async function GET(request: Request) {
     const statut = searchParams.get('statut') || undefined;
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       let filtered = [...DEMO_PERSONNEL];
       if (role) filtered = filtered.filter(p => p.role === role);
       if (statut === 'actif') filtered = filtered.filter(p => p.est_actif);
@@ -124,26 +125,20 @@ export async function GET(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Build query ──
     let query = supabase
       .from('personnel_hotel')
       .select('*, user:profiles!user_id(id, email, avatar_url)', { count: 'exact' })
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .order('created_at', { ascending: false });
 
     if (role) query = query.eq('role', role);
@@ -159,7 +154,7 @@ export async function GET(request: Request) {
     const { data: hotel } = await supabase
       .from('hotels')
       .select('plan')
-      .eq('id', profile.hotel_id)
+      .eq('id', hotelId)
       .single();
 
     const planInfo = hotel
@@ -170,7 +165,7 @@ export async function GET(request: Request) {
     const { data: allPersonnel } = await supabase
       .from('personnel_hotel')
       .select('role, est_actif')
-      .eq('hotel_id', profile.hotel_id);
+      .eq('hotel_id', hotelId);
 
     const gerantsActifs = (allPersonnel ?? []).filter(p => p.role === 'gerant' && p.est_actif).length;
     const recepActifs = (allPersonnel ?? []).filter(p => p.role === 'receptionniste' && p.est_actif).length;
@@ -218,10 +213,10 @@ export async function POST(request: Request) {
     }
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const newPersonnel = {
         id: `per-new-${Date.now()}`,
         hotel_id: 'hotel-demo',
@@ -240,26 +235,20 @@ export async function POST(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Check plan limits ──
     const { data: hotel } = await supabase
       .from('hotels')
       .select('plan')
-      .eq('id', profile.hotel_id)
+      .eq('id', hotelId)
       .single();
 
     const planInfo = hotel
@@ -269,7 +258,7 @@ export async function POST(request: Request) {
     const { data: currentStaff } = await supabase
       .from('personnel_hotel')
       .select('role, est_actif')
-      .eq('hotel_id', profile.hotel_id);
+      .eq('hotel_id', hotelId);
 
     const activeByRole = (currentStaff ?? []).filter(p => p.est_actif).reduce(
       (acc, p) => {
@@ -293,7 +282,7 @@ export async function POST(request: Request) {
     const { data: personnel, error } = await supabase
       .from('personnel_hotel')
       .insert({
-        hotel_id: profile.hotel_id,
+        hotel_id: hotelId,
         role,
         nom_complet,
         telephone: telephone ?? null,
@@ -357,10 +346,10 @@ export async function PUT(request: Request) {
     }
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const per = DEMO_PERSONNEL.find(p => p.id === personnelId);
       if (!per) {
         return NextResponse.json({ success: false, error: 'Personnel non trouvé (démo).' }, { status: 404 });
@@ -370,27 +359,21 @@ export async function PUT(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Update (scoped to hotel) ──
     const { data: personnel, error } = await supabase
       .from('personnel_hotel')
       .update(updates)
       .eq('id', personnelId)
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .select('*, user:profiles!user_id(id, email, avatar_url)')
       .single();
 
@@ -426,10 +409,10 @@ export async function DELETE(request: Request) {
     }
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       const per = DEMO_PERSONNEL.find(p => p.id === personnelId);
       if (!per) {
         return NextResponse.json({ success: false, error: 'Personnel non trouvé (démo).' }, { status: 404 });
@@ -438,27 +421,21 @@ export async function DELETE(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Deactivate (scoped to hotel) ──
     const { error } = await supabase
       .from('personnel_hotel')
       .update({ est_actif: false })
       .eq('id', personnelId)
-      .eq('hotel_id', profile.hotel_id);
+      .eq('hotel_id', hotelId);
 
     if (error) {
       return NextResponse.json(

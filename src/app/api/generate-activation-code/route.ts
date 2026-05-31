@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { escapeHtml } from '@/lib/html-escape';
 import env from '@/lib/env';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -264,35 +265,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 1. Vérifier l'authentification super_admin ──
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-
-    if (!supabase) {
+    const auth = await verifyApiAuth(request, ['super_admin']);
+    if (!auth.authorized) {
       return NextResponse.json(
-        { success: false, error: 'Erreur de connexion à Supabase.' },
-        { status: 500 }
+        { success: false, error: auth.error },
+        { status: auth.status }
       );
     }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Non authentifié. Connectez-vous en tant que super administrateur.' },
-        { status: 401 }
-      );
-    }
-
-    // Vérifier le rôle super_admin
-    const role = (user.app_metadata?.role as string) ?? (user.user_metadata?.role as string) ?? null;
-    if (role !== 'super_admin') {
-      return NextResponse.json(
-        { success: false, error: 'Accès refusé. Cette action est réservée au super administrateur.' },
-        { status: 403 }
-      );
-    }
+    const { user, profile } = auth;
 
     // ── 2. Parser le body ──
     const body: GenerateCodeBody = await request.json();

@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import { PLANS_ABONNEMENT } from '@/lib/constants';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Demo data ────────────────────────────────────────────────────────────
 
@@ -58,37 +59,31 @@ function buildDemoSettings() {
 
 // ─── GET Handler ─────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       return NextResponse.json({ success: true, data: buildDemoSettings() });
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     // ── Fetch hotel ──
     const { data: hotel, error } = await supabase
       .from('hotels')
       .select('*')
-      .eq('id', profile.hotel_id)
+      .eq('id', hotelId)
       .single();
 
     if (error || !hotel) {
@@ -135,10 +130,10 @@ export async function PUT(request: Request) {
     const { currentPassword, newPassword, ...hotelFields } = body;
 
     // Dynamic import
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const clientCheck = await createClient();
 
-    if (!supabase) {
+    if (!clientCheck) {
       // Demo mode — just return updated hotel mock
       if (currentPassword && newPassword) {
         return NextResponse.json({ success: true, message: 'Mot de passe mis à jour (démo).' });
@@ -148,10 +143,12 @@ export async function PUT(request: Request) {
     }
 
     // ── Auth check ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
     // ── Password update ──
     if (currentPassword && newPassword) {
@@ -162,9 +159,15 @@ export async function PUT(request: Request) {
         );
       }
 
+      // Need anon client for auth operations (password verify/update)
+      const anonClient = await createClient();
+      if (!anonClient) {
+        return NextResponse.json({ success: false, error: 'Erreur de connexion.' }, { status: 500 });
+      }
+
       // Verify current password by attempting sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
+      const { error: signInError } = await anonClient.auth.signInWithPassword({
+        email: user.email,
         password: currentPassword,
       });
 
@@ -176,7 +179,7 @@ export async function PUT(request: Request) {
       }
 
       // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { error: updateError } = await anonClient.auth.updateUser({
         password: newPassword,
       });
 
@@ -191,15 +194,7 @@ export async function PUT(request: Request) {
     }
 
     // ── Hotel info update ──
-    const profile = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.data?.hotel_id) {
-      return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
-    }
+    const supabase = await createAdminClient();
 
     const updates: Record<string, unknown> = {};
     const allowedFields = ['nom', 'adresse', 'ville', 'quartier', 'telephone', 'email', 'description', 'nombre_etoiles'];
@@ -231,7 +226,7 @@ export async function PUT(request: Request) {
     const { data: hotel, error } = await supabase
       .from('hotels')
       .update(updates)
-      .eq('id', profile.data.hotel_id)
+      .eq('id', hotelId)
       .select()
       .single();
 

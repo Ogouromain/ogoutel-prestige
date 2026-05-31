@@ -4,6 +4,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Demo data ────────────────────────────────────────────────────────────
 
@@ -84,12 +85,12 @@ const DEMO_ACTIVITIES = [
 
 // ─── GET Handler ─────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       // Demo response
       const checkinsToday = DEMO_RESERVATIONS.filter(
         (r) => r.statut === 'confirmee' && r.date_arrivee === today
@@ -126,34 +127,23 @@ export async function GET() {
     }
 
     // ── Auth check ──
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant', 'receptionniste']);
+    if (!auth.authorized) {
       return NextResponse.json(
-        { success: false, error: 'Non authentifié.' },
-        { status: 401 }
+        { success: false, error: auth.error },
+        { status: auth.status }
       );
     }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('hotel_id, full_name, role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return NextResponse.json(
-        { success: false, error: 'Aucun hôtel associé.' },
-        { status: 403 }
-      );
-    }
+    const supabase = await createAdminClient();
 
     // ── Fetch chambres stats ──
     const { data: chambres } = await supabase
       .from('chambres')
       .select('id, statut')
-      .eq('hotel_id', profile.hotel_id);
+      .eq('hotel_id', hotelId);
 
     const allChambres = chambres ?? [];
     const todayStr = new Date().toISOString().split('T')[0];
@@ -162,7 +152,7 @@ export async function GET() {
     const { data: checkinsToday } = await supabase
       .from('reservations')
       .select('id, statut, date_arrivee, client:clients!client_id(nom, prenom), chambre:chambres!chambre_id(numero)')
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .eq('statut', 'confirmee')
       .eq('date_arrivee', todayStr);
 
@@ -170,7 +160,7 @@ export async function GET() {
     const { data: checkoutsToday } = await supabase
       .from('reservations')
       .select('id, statut, date_depart, client:clients!client_id(nom, prenom), chambre:chambres!chambre_id(numero)')
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .eq('statut', 'checkin')
       .eq('date_depart', todayStr);
 
@@ -178,7 +168,7 @@ export async function GET() {
     const { data: activites } = await supabase
       .from('activites_log')
       .select('id, action, details, created_at')
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -186,7 +176,7 @@ export async function GET() {
     const { data: hotel } = await supabase
       .from('hotels')
       .select('nom')
-      .eq('id', profile.hotel_id)
+      .eq('id', hotelId)
       .single();
 
     const nameParts = (profile.full_name || '').split(' ');

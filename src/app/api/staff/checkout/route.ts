@@ -5,6 +5,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { verifyApiAuth } from '@/lib/auth-helpers';
 
 // ─── Demo data ────────────────────────────────────────────────────────────
 
@@ -66,10 +67,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.toLowerCase() || undefined;
 
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       // Demo mode
       let stays = [...DEMO_ACTIVE_STAYS];
       if (search) {
@@ -83,18 +84,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: { sejours: stays } });
     }
 
-    // ── Auth ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    // ── Auth check ──
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant', 'receptionniste']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase.from('profiles').select('hotel_id').eq('id', user.id).single();
-    if (!profile?.hotel_id) return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    const supabase = await createAdminClient();
 
     // ── Active stays ──
     let query = supabase
       .from('reservations')
       .select('*, client:clients!client_id(nom, prenom, telephone), chambre:chambres!chambre_id(numero, type, prix_nuit)')
-      .eq('hotel_id', profile.hotel_id)
+      .eq('hotel_id', hotelId)
       .eq('statut', 'checkin')
       .order('date_arrivee', { ascending: false });
 
@@ -132,10 +136,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'reservationId requis.' }, { status: 400 });
     }
 
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { createClient, createAdminClient } = await import('@/lib/supabase/server');
+    const client = await createClient();
 
-    if (!supabase) {
+    if (!client) {
       // Demo mode
       const stay = DEMO_ACTIVE_STAYS.find((s) => s.id === reservationId);
       if (!stay) return NextResponse.json({ success: false, error: 'Séjour non trouvé (démo).' }, { status: 404 });
@@ -154,12 +158,15 @@ export async function POST(request: Request) {
       });
     }
 
-    // ── Auth ──
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 });
+    // ── Auth check ──
+    const auth = await verifyApiAuth(request, ['admin_hotel', 'gerant', 'receptionniste']);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    }
+    const { user, profile } = auth;
+    const hotelId = profile.hotel_id;
 
-    const { data: profile } = await supabase.from('profiles').select('hotel_id').eq('id', user.id).single();
-    if (!profile?.hotel_id) return NextResponse.json({ success: false, error: 'Aucun hôtel associé.' }, { status: 403 });
+    const supabase = await createAdminClient();
 
     // ── Get current reservation ──
     const { data: currentRes } = await supabase
@@ -198,7 +205,7 @@ export async function POST(request: Request) {
     if (montant_paye_final && Number(montant_paye_final) > 0 && currentRes.montant_total) {
       const isFullyPaid = newMontantPaye >= currentRes.montant_total;
       await supabase.from('factures').insert({
-        hotel_id: profile.hotel_id,
+        hotel_id: hotelId,
         reservation_id: reservationId,
         client_id: currentRes.client_id,
         montant_ht: Math.round(Number(montant_paye_final) / 1.18),
@@ -211,7 +218,7 @@ export async function POST(request: Request) {
     // ── Log activity ──
     try {
       await supabase.from('activites_log').insert({
-        hotel_id: profile.hotel_id,
+        hotel_id: hotelId,
         user_id: user.id,
         action: 'checkout',
         details: {
